@@ -1,0 +1,6 @@
+/trash/
+.vscode
+.vscode-ctags
+.cache
+/build
+/bin
