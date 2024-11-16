@@ -1,65 +1,95 @@
 #include "nik3dsim.h"
-
+#include <SDL2/SDL.h>
 using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and substeps for stability
     RigidBodySimulator sim;
     simulator_init(
-        &sim, 
-        vec3_create(0, 0, 0),  // No gravity for pure rotation demo
-        0.016f,                // 16ms timestep (60Hz)
-        1                      // 1 position iteration (no constraints)
+        &sim,
+        vec3_create(0, 0, -0.1), // No gravity for pure rotation demo
+        0.00001f, // 1ms timestep for better stability
+        1 // 1 position iteration (no constraints)
     );
-    
-    // Create a T-shaped body by setting appropriate inertia values
+
+    // Create a body with distinct principal moments of inertia
     RigidBody body;
     
-    // Make a box with dimensions that create distinct principal moments of inertia
-    // The T shape will be approximated by setting appropriate inertia values
-    // We'll create an effective T shape with:
-    // - Long bar: 2 units wide, 0.2 units tall, 0.2 units deep
-    // - Vertical bar: 0.2 units wide, 1 unit tall, 0.2 units deep
-    Vec3 size = vec3_create(1.0f, 1.0f, 1.0f);  // Base size (will be modified by inertia)
-    
-    // Initialize the body at the origin with no initial rotation
+    // Initialize with dummy size - we'll override the inertia
     rigidbody_init(
         &body,
         BODY_BOX,
-        size,
-        1.0f,  // Density of 1 for simplicity
-        vec3_create(0, 0, 0),  // At origin
-        vec3_create(0, 0, 0)   // No initial rotation
-    );
-    
-    // Manually set inertia to match T shape
-    // These values create the characteristic intermediate axis instability
-    // Ix < Iy < Iz (intermediate axis is y)
-    float Ix = 1.0f;    // Smallest (about vertical bar)
-    float Iy = 4.0f;    // Intermediate (about horizontal bar)
-    float Iz = 5.0f;    // Largest (about depth)
-    
-    body.invInertia = vec3_create(1.0f/Ix, 1.0f/Iy, 1.0f/Iz);
-    
-    // Set initial angular velocity
-    // Primarily around y-axis (intermediate) with small perturbation
-    body.omega = vec3_create(
-        0.1f,    // Small perturbation in x
-        10.0f,   // Main rotation around y
-        0.1f     // Small perturbation in z
-    );
-    
-    // Add some damping to prevent perpetual motion
+        vec3_create(1.0f, 0.5f, 0.1f), // Size doesn't matter as we'll override inertia
+        1.0f, // Density of 1 for simplicity
+        vec3_create(0, 0, 0), // At origin
+        vec3_create(0, 0, 0) // No initial rotation
+    );    
+
+    // Set initial angular velocity mostly around the middle (unstable) axis
+    // with small perturbations on other axes to trigger the instability
+    body.omega = vec3_create(0.0f, 2.0f, 0.01f);
+    body.vel = vec3_create(0.0f, 0.0f, 3.0f);
     body.damping = 0;
-    
+
     // Add body to simulator
     sim.rigidBodies[sim.rigidBodyCount++] = body;
-    
-    // Run simulation for 1000 frames (about 16 seconds)
-    for(int frame = 0; frame < 10000; frame++) {
-        simulator_simulate(&sim);
-        print_simulation_state_parse(&sim);
+
+    // Rest of your code remains the same...
+    Renderer renderer;
+    if (!renderer_init(&renderer, 800, 600)) {
+        printf("Failed to initialize renderer\n");
+        return 1;
     }
+
+    Camera camera;
+    camera.position = vec3_create(3.0f, 3.0f, 3.0f);
+    camera.target = vec3_create(0.0f, 0.0f, 0.0f);
+    camera.up = vec3_create(0.0f, 0.0f, 1.0f);
+    camera.fov = 60.0f;
+    camera.aspectRatio = 800.0f / 600.0f;
+    camera.nearPlane = 0.1f;
+    camera.farPlane = 100.0f;
+    renderer_set_camera(&renderer, camera);
+
+    bool running = true;
+    SDL_Event event;
+    Uint32 lastTime = SDL_GetTicks();
     
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+                case SDL_KEYDOWN:
+                    if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        running = false;
+                    }
+                    break;
+                case SDL_WINDOWEVENT:
+                    if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                        renderer_resize(&renderer, event.window.data1, event.window.data2);
+                    }
+                    break;
+            }
+        }
+
+        Uint32 currentTime = SDL_GetTicks();
+        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        lastTime = currentTime;
+
+        static float accumulator = 0.0f;
+        accumulator += deltaTime;
+        
+        while (accumulator >= sim.dt) {
+            simulator_simulate(&sim);
+            accumulator -= sim.dt;
+        }
+
+        renderer_draw_simulation(&renderer, &sim);
+        SDL_Delay(1);
+    }
+
+    renderer_cleanup(&renderer);
     return 0;
 }

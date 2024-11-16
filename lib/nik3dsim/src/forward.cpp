@@ -61,41 +61,49 @@ namespace nik3dsim {
         body->prevRot = body->rot;
         
         // Update linear state
-        Vec3 fext = vec3_scale(gravity, body->invMass); // External force (just gravity)
+        Vec3 fext = vec3_scale(gravity, body->invMass);
         body->vel = vec3_add(body->vel, vec3_scale(fext, dt));
         body->pos = vec3_add(body->pos, vec3_scale(body->vel, dt));
         
-        // Update angular state
-        Vec3 torque = vec3_create(0, 0, 0); // External torque (none for now)
+        // Angular motion in body space
         Vec3 I_omega = vec3_create(
-            body->invInertia.x != 0 ? body->omega.x / body->invInertia.x : 0,
-            body->invInertia.y != 0 ? body->omega.y / body->invInertia.y : 0,
-            body->invInertia.z != 0 ? body->omega.z / body->invInertia.z : 0
+            body->omega.x / body->invInertia.x,
+            body->omega.y / body->invInertia.y,
+            body->omega.z / body->invInertia.z
         );
-        Vec3 cross = vec3_cross(body->omega, I_omega);
-        Vec3 effective_torque = vec3_sub(torque, cross);
         
-        // Update angular velocity
+        // Compute cross product in body space
+        Vec3 cross_term = vec3_cross(body->omega, I_omega);
+        Vec3 torque = vec3_create(0, 0, 0);  // No external torque for now
+        
+        // Update angular velocity (in body space)
         Vec3 angular_accel = vec3_create(
-            effective_torque.x * body->invInertia.x,
-            effective_torque.y * body->invInertia.y,
-            effective_torque.z * body->invInertia.z
+            body->invInertia.x * (torque.x - cross_term.x),
+            body->invInertia.y * (torque.y - cross_term.y),
+            body->invInertia.z * (torque.z - cross_term.z)
         );
         body->omega = vec3_add(body->omega, vec3_scale(angular_accel, dt));
         
-        // Update rotation quaternion
-        Quat omega_quat = quat_create(
-            body->omega.x,
-            body->omega.y,
-            body->omega.z,
-            0.0f
-        );
-        Quat q_dot = quat_multiply(omega_quat, body->rot);
-        body->rot.x += 0.5f * dt * q_dot.x;
-        body->rot.y += 0.5f * dt * q_dot.y;
-        body->rot.z += 0.5f * dt * q_dot.z;
-        body->rot.w += 0.5f * dt * q_dot.w;
-        body->rot = quat_normalize(body->rot);
+        // Update rotation using exponential map
+        float omega_len = vec3_length(body->omega);
+        float omega_dt = omega_len * dt;
+        
+        if (omega_dt > 1e-6f) {
+            float s = sinf(omega_dt * 0.5f);
+            // Create incremental rotation quaternion
+            Quat dq = quat_create(
+                body->omega.x * s / omega_len,
+                body->omega.y * s / omega_len,
+                body->omega.z * s / omega_len,
+                cosf(omega_dt * 0.5f)
+            );
+            
+            // Right multiply for body-space update
+            body->rot = quat_multiply(body->rot, dq);
+            
+            // Normalize quaternion (using your implementation)
+            body->rot = quat_normalize(body->rot);
+        }
     }
 
     void simulator_init(RigidBodySimulator* sim, Vec3 gravity, float timeStepSize, int numPosIters) {
@@ -124,17 +132,17 @@ namespace nik3dsim {
             RigidBody* body = &sim->rigidBodies[i];
             
             // Update linear velocity from position change
-            Vec3 deltaPos = vec3_sub(body->pos, body->prevPos);
-            body->vel = vec3_scale(deltaPos, 1.0f / sim->dt);
+            // Vec3 deltaPos = vec3_sub(body->pos, body->prevPos);
+            // body->vel = vec3_scale(deltaPos, 1.0f / sim->dt);
             
             // Update angular velocity from quaternion change
-            Quat deltaQ = quat_multiply(body->rot, quat_conjugate(body->prevRot));
-            float sign = copysignf(1.0f, deltaQ.w);  // Built-in branchless sign function
-            body->omega = vec3_scale(vec3_create(deltaQ.x, deltaQ.y, deltaQ.z), (2.0f / sim->dt) * sign);
-            
+            // Quat deltaQ = quat_multiply(body->rot, quat_conjugate(body->prevRot));
+            // float sign = copysignf(1.0f, deltaQ.w);  // Built-in branchless sign function
+            // body->omega = vec3_scale(vec3_create(deltaQ.x, deltaQ.y, deltaQ.z), (2.0f / sim->dt) * sign);
+
             // Apply damping
-            body->vel = vec3_scale(body->vel, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
-            body->omega = vec3_scale(body->omega, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
+            // body->vel = vec3_scale(body->vel, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
+            // body->omega = vec3_scale(body->omega, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
         }
     }
 
@@ -154,30 +162,5 @@ namespace nik3dsim {
             printf("\n");
         }
         printf("----------------------------------------------------\n");
-    }
-
-    void print_simulation_state_parse(RigidBodySimulator* sim) {
-        printf("FRAME_START %f\n", sim->dt);
-        
-        // Print each body's state in a parseable format
-        for (int i = 0; i < sim->rigidBodyCount; i++) {
-            RigidBody* body = &sim->rigidBodies[i];
-            
-            // Print body type and dimensions first
-            printf("BODY_SHAPE %d %.6f %.6f %.6f\n",
-                body->type,
-                body->size.x, body->size.y, body->size.z);
-            
-            // Print state (position, orientation, velocities)
-            printf("BODY_STATE %d %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n",
-                i,
-                body->pos.x, body->pos.y, body->pos.z,
-                body->rot.x, body->rot.y, body->rot.z, body->rot.w,
-                body->vel.x, body->vel.y, body->vel.z,
-                body->omega.x, body->omega.y, body->omega.z);
-        }
-        
-        printf("FRAME_END\n");
-        fflush(stdout);
     }
 }

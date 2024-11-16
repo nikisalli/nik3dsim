@@ -16,6 +16,5 @@ namespace nik3dsim {
 
     // Utility functions
     void print_simulation_state(RigidBodySimulator* sim);
-    void print_simulation_state_parse(RigidBodySimulator* sim);
 
 }  // namespace nik3dsim
