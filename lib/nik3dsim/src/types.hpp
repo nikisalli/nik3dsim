@@ -11,10 +11,6 @@ namespace nik3dsim {
         BODY_BOX
     } BodyType;
 
-    typedef enum {
-        STATIC_PLANE,
-    } StaticBodyType;
-
     // Forward declarations for struct dependencies
     struct RigidBody;
     struct DistanceConstraint;
@@ -22,19 +18,18 @@ namespace nik3dsim {
     // RigidBody struct
     typedef struct RigidBody {
         BodyType type;
-        Vec3 size;
-        float damping;
+        niknum size[3];
         
-        Vec3 pos;
-        Quat rot;
-        Vec3 vel;
-        Vec3 omega;
+        niknum pos[3];
+        niknum rot[4];
+        niknum vel[3];
+        niknum omega[3];
 
-        Vec3 prevPos;
-        Quat prevRot;
+        niknum prevPos[3];
+        niknum prevRot[4];
         
-        float invMass;
-        Vec3 invInertia;
+        niknum invMass;
+        niknum invInertia[3];
     } RigidBody;
 
     // Distance Constraint struct
@@ -42,25 +37,35 @@ namespace nik3dsim {
         size_t body0;
         size_t body1;
         
-        Vec3 localPos0;
-        Vec3 localPos1;
+        niknum localPos0[3];
+        niknum localPos1[3];
         
-        float distance;
-        float compliance;
-        Vec3 corr;
+        niknum distance;
     } DistanceConstraint;
+
+    typedef struct HingeConstraint {
+        size_t body0;
+        size_t body1;
+
+        niknum local_pos0[3];  // Local attachment point on body0 
+        niknum local_pos1[3];  // Local attachment point on body1
+        niknum local_axis0[3]; // Local hinge axis on body0
+        niknum local_axis1[3]; // Local hinge axis on body1
+    } HingeConstraint;
 
     // Simulator struct
     typedef struct {
-        Vec3 gravity;
-        float dt;
+        niknum gravity[3];
+        niknum dt;
         
         RigidBody rigidBodies[100];
-        int rigidBodyCount;
+        size_t rigidBodyCount;
         
-        DistanceConstraint constraints[100];
-        int constraintCount;
+        DistanceConstraint distanceConstraints[100];
+        size_t distanceConstraintCount;
+        HingeConstraint hingeConstraints[100];
+        size_t hingeConstraintCount;
 
-        int posIters;
+        size_t posIters;
     } RigidBodySimulator;
 }

@@ -2,18 +2,18 @@
 #define RENDERER_HPP
 
 #include <SDL2/SDL.h>
-#include "forward.hpp"  // For RigidBody definitions
+#include "forward.hpp" // For RigidBody definitions
 
 namespace nik3dsim {
 
 struct Camera {
-    Vec3 position;      
-    Vec3 target;        
-    Vec3 up;           
-    float fov;         
-    float aspectRatio; 
-    float nearPlane;   
-    float farPlane;    
+    float position[3];
+    float target[3];
+    float up[3];
+    float fov;
+    float aspectRatio;
+    float nearPlane;
+    float farPlane;
 };
 
 struct Renderer {
@@ -38,12 +38,12 @@ void renderer_present(Renderer* renderer);
 void renderer_set_camera(Renderer* renderer, Camera camera);
 
 // Coordinate transformation
-SDL_Point renderer_world_to_screen(Renderer* renderer, Vec3 point);
+SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]);
 
 // Drawing primitives
-void renderer_draw_wireframe_line(Renderer* renderer, Vec3 start, Vec3 end);
-void renderer_draw_wireframe_box(Renderer* renderer, Vec3 pos, Vec3 size, Quat rot);
-void renderer_draw_wireframe_sphere(Renderer* renderer, Vec3 pos, float radius);
+void renderer_draw_wireframe_line(Renderer* renderer, niknum start[3], niknum end[3]);
+void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]);
+void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius);
 
 // High-level rendering
 void renderer_draw_body(Renderer* renderer, RigidBody body);

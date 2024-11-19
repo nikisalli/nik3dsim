@@ -35,16 +35,22 @@ bool renderer_init(Renderer* renderer, int width, int height) {
     renderer->screenHeight = height;
     
     // Setup default camera
-    Camera cam;
-    cam.position = vec3_create(5.0f, 5.0f, 5.0f);
-    cam.target = vec3_create(0.0f, 0.0f, 0.0f);
-    cam.up = vec3_create(0.0f, 1.0f, 0.0f);
-    cam.fov = 60.0f;
-    cam.aspectRatio = (float)width / height;
-    cam.nearPlane = 0.1f;
-    cam.farPlane = 100.0f;
+    niknum position[3] = {5.0f, 5.0f, 5.0f};
+    niknum target[3] = {0.0f, 0.0f, 0.0f};
+    niknum up[3] = {0.0f, 1.0f, 0.0f};
     
-    renderer_set_camera(renderer, cam);
+    for(int i = 0; i < 3; i++) {
+        renderer->camera.position[i] = position[i];
+        renderer->camera.target[i] = target[i];
+        renderer->camera.up[i] = up[i];
+    }
+    
+    renderer->camera.fov = 60.0f;
+    renderer->camera.aspectRatio = (float)width / height;
+    renderer->camera.nearPlane = 0.1f;
+    renderer->camera.farPlane = 100.0f;
+    
+    renderer_set_camera(renderer, renderer->camera);
     return true;
 }
 
@@ -71,25 +77,32 @@ void renderer_set_camera(Renderer* renderer, Camera camera) {
     renderer->camera = camera;
     
     // Calculate view matrix
-    Vec3 z = vec3_normalize(vec3_sub(camera.position, camera.target));
-    Vec3 x = vec3_normalize(vec3_cross(camera.up, z));
-    Vec3 y = vec3_cross(z, x);
+    niknum z[3], x[3], y[3], neg_pos[3], temp[3];
+    
+    vec3_sub(temp, camera.position, camera.target);
+    vec3_normalize(z, temp);
+    
+    vec3_cross(x, camera.up, z);
+    vec3_normalize(x, x);
+    
+    vec3_cross(y, z, x);
+    
+    vec3_scale(neg_pos, camera.position, -1.0f);
     
     // Build view matrix (row-major)
-    Vec3 neg_pos = vec3_scale(camera.position, -1.0f);
-    renderer->viewMatrix[0] = x.x;  
-    renderer->viewMatrix[4] = x.y;  
-    renderer->viewMatrix[8] = x.z;  
+    renderer->viewMatrix[0] = x[0];  
+    renderer->viewMatrix[4] = x[1];  
+    renderer->viewMatrix[8] = x[2];  
     renderer->viewMatrix[12] = vec3_dot(x, neg_pos);
     
-    renderer->viewMatrix[1] = y.x;  
-    renderer->viewMatrix[5] = y.y;  
-    renderer->viewMatrix[9] = y.z;  
+    renderer->viewMatrix[1] = y[0];  
+    renderer->viewMatrix[5] = y[1];  
+    renderer->viewMatrix[9] = y[2];  
     renderer->viewMatrix[13] = vec3_dot(y, neg_pos);
     
-    renderer->viewMatrix[2] = z.x;  
-    renderer->viewMatrix[6] = z.y;  
-    renderer->viewMatrix[10] = z.z; 
+    renderer->viewMatrix[2] = z[0];  
+    renderer->viewMatrix[6] = z[1];  
+    renderer->viewMatrix[10] = z[2]; 
     renderer->viewMatrix[14] = vec3_dot(z, neg_pos);
     
     renderer->viewMatrix[3] = 0.0f; 
@@ -122,63 +135,65 @@ void renderer_set_camera(Renderer* renderer, Camera camera) {
     renderer->projectionMatrix[15] = 0.0f;
 }
 
-SDL_Point renderer_world_to_screen(Renderer* renderer, Vec3 point) {
+SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]) {
     // View transformation
-    Vec4 viewSpace;
-    viewSpace.x = renderer->viewMatrix[0] * point.x + renderer->viewMatrix[4] * point.y + 
-                 renderer->viewMatrix[8] * point.z + renderer->viewMatrix[12];
-    viewSpace.y = renderer->viewMatrix[1] * point.x + renderer->viewMatrix[5] * point.y + 
-                 renderer->viewMatrix[9] * point.z + renderer->viewMatrix[13];
-    viewSpace.z = renderer->viewMatrix[2] * point.x + renderer->viewMatrix[6] * point.y + 
-                 renderer->viewMatrix[10] * point.z + renderer->viewMatrix[14];
-    viewSpace.w = renderer->viewMatrix[3] * point.x + renderer->viewMatrix[7] * point.y + 
-                 renderer->viewMatrix[11] * point.z + renderer->viewMatrix[15];
+    niknum viewSpace[4];
+    viewSpace[0] = renderer->viewMatrix[0] * point[0] + renderer->viewMatrix[4] * point[1] + 
+                   renderer->viewMatrix[8] * point[2] + renderer->viewMatrix[12];
+    viewSpace[1] = renderer->viewMatrix[1] * point[0] + renderer->viewMatrix[5] * point[1] + 
+                   renderer->viewMatrix[9] * point[2] + renderer->viewMatrix[13];
+    viewSpace[2] = renderer->viewMatrix[2] * point[0] + renderer->viewMatrix[6] * point[1] + 
+                   renderer->viewMatrix[10] * point[2] + renderer->viewMatrix[14];
+    viewSpace[3] = renderer->viewMatrix[3] * point[0] + renderer->viewMatrix[7] * point[1] + 
+                   renderer->viewMatrix[11] * point[2] + renderer->viewMatrix[15];
     
     // Projection transformation
-    Vec4 clipSpace;
-    clipSpace.x = renderer->projectionMatrix[0] * viewSpace.x + renderer->projectionMatrix[4] * viewSpace.y + 
-                 renderer->projectionMatrix[8] * viewSpace.z + renderer->projectionMatrix[12] * viewSpace.w;
-    clipSpace.y = renderer->projectionMatrix[1] * viewSpace.x + renderer->projectionMatrix[5] * viewSpace.y + 
-                 renderer->projectionMatrix[9] * viewSpace.z + renderer->projectionMatrix[13] * viewSpace.w;
-    clipSpace.z = renderer->projectionMatrix[2] * viewSpace.x + renderer->projectionMatrix[6] * viewSpace.y + 
-                 renderer->projectionMatrix[10] * viewSpace.z + renderer->projectionMatrix[14] * viewSpace.w;
-    clipSpace.w = renderer->projectionMatrix[3] * viewSpace.x + renderer->projectionMatrix[7] * viewSpace.y + 
-                 renderer->projectionMatrix[11] * viewSpace.z + renderer->projectionMatrix[15] * viewSpace.w;
+    niknum clipSpace[4];
+    clipSpace[0] = renderer->projectionMatrix[0] * viewSpace[0] + renderer->projectionMatrix[4] * viewSpace[1] + 
+                   renderer->projectionMatrix[8] * viewSpace[2] + renderer->projectionMatrix[12] * viewSpace[3];
+    clipSpace[1] = renderer->projectionMatrix[1] * viewSpace[0] + renderer->projectionMatrix[5] * viewSpace[1] + 
+                   renderer->projectionMatrix[9] * viewSpace[2] + renderer->projectionMatrix[13] * viewSpace[3];
+    clipSpace[2] = renderer->projectionMatrix[2] * viewSpace[0] + renderer->projectionMatrix[6] * viewSpace[1] + 
+                   renderer->projectionMatrix[10] * viewSpace[2] + renderer->projectionMatrix[14] * viewSpace[3];
+    clipSpace[3] = renderer->projectionMatrix[3] * viewSpace[0] + renderer->projectionMatrix[7] * viewSpace[1] + 
+                   renderer->projectionMatrix[11] * viewSpace[2] + renderer->projectionMatrix[15] * viewSpace[3];
     
     // Perspective divide
-    if (clipSpace.w != 0.0f) {
-        clipSpace.x /= clipSpace.w;
-        clipSpace.y /= clipSpace.w;
+    if (clipSpace[3] != 0.0f) {
+        clipSpace[0] /= clipSpace[3];
+        clipSpace[1] /= clipSpace[3];
     }
     
     // Convert to screen coordinates
     SDL_Point screen;
-    screen.x = (int)((clipSpace.x + 1.0f) * 0.5f * renderer->screenWidth);
-    screen.y = (int)((1.0f - clipSpace.y) * 0.5f * renderer->screenHeight);
+    screen.x = (int)((clipSpace[0] + 1.0f) * 0.5f * renderer->screenWidth);
+    screen.y = (int)((1.0f - clipSpace[1]) * 0.5f * renderer->screenHeight);
     return screen;
 }
 
-void renderer_draw_wireframe_line(Renderer* renderer, Vec3 start, Vec3 end) {
+void renderer_draw_wireframe_line(Renderer* renderer, niknum start[3], niknum end[3]) {
     SDL_Point p1 = renderer_world_to_screen(renderer, start);
     SDL_Point p2 = renderer_world_to_screen(renderer, end);
     SDL_RenderDrawLine(renderer->sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
-void renderer_draw_wireframe_box(Renderer* renderer, Vec3 pos, Vec3 size, Quat rot) {
+void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]) {
     // Define box vertices in local space
-    Vec3 vertices[8];
-    vertices[0] = vec3_create(-size.x/2, -size.y/2, -size.z/2);
-    vertices[1] = vec3_create( size.x/2, -size.y/2, -size.z/2);
-    vertices[2] = vec3_create( size.x/2,  size.y/2, -size.z/2);
-    vertices[3] = vec3_create(-size.x/2,  size.y/2, -size.z/2);
-    vertices[4] = vec3_create(-size.x/2, -size.y/2,  size.z/2);
-    vertices[5] = vec3_create( size.x/2, -size.y/2,  size.z/2);
-    vertices[6] = vec3_create( size.x/2,  size.y/2,  size.z/2);
-    vertices[7] = vec3_create(-size.x/2,  size.y/2,  size.z/2);
+    niknum vertices[8][3];
+    vertices[0][0] = -size[0]/2; vertices[0][1] = -size[1]/2; vertices[0][2] = -size[2]/2;
+    vertices[1][0] =  size[0]/2; vertices[1][1] = -size[1]/2; vertices[1][2] = -size[2]/2;
+    vertices[2][0] =  size[0]/2; vertices[2][1] =  size[1]/2; vertices[2][2] = -size[2]/2;
+    vertices[3][0] = -size[0]/2; vertices[3][1] =  size[1]/2; vertices[3][2] = -size[2]/2;
+    vertices[4][0] = -size[0]/2; vertices[4][1] = -size[1]/2; vertices[4][2] =  size[2]/2;
+    vertices[5][0] =  size[0]/2; vertices[5][1] = -size[1]/2; vertices[5][2] =  size[2]/2;
+    vertices[6][0] =  size[0]/2; vertices[6][1] =  size[1]/2; vertices[6][2] =  size[2]/2;
+    vertices[7][0] = -size[0]/2; vertices[7][1] =  size[1]/2; vertices[7][2] =  size[2]/2;
     
     // Transform vertices to world space
+    niknum rotated[3];
     for (int i = 0; i < 8; i++) {
-        vertices[i] = vec3_add(pos, vec3_quat_rotate(rot, vertices[i]));
+        vec3_quat_rotate(rotated, rot, vertices[i]);
+        vec3_add(vertices[i], pos, rotated);
     }
     
     // Draw edges
@@ -203,28 +218,44 @@ void renderer_draw_wireframe_box(Renderer* renderer, Vec3 pos, Vec3 size, Quat r
     renderer_draw_wireframe_line(renderer, vertices[3], vertices[7]);
 }
 
-void renderer_draw_wireframe_sphere(Renderer* renderer, Vec3 pos, float radius) {
+void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius) {
     const int segments = 16;
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
     
     // Draw three circles in XY, YZ, and XZ planes
+    niknum p1[3], p2[3];
     for (int i = 0; i < segments; i++) {
         float theta1 = (float)i / segments * 2.0f * M_PI;
         float theta2 = (float)(i + 1) / segments * 2.0f * M_PI;
         
         // XY plane circle
-        Vec3 p1 = vec3_add(pos, vec3_create(radius * cosf(theta1), radius * sinf(theta1), 0.0f));
-        Vec3 p2 = vec3_add(pos, vec3_create(radius * cosf(theta2), radius * sinf(theta2), 0.0f));
+        p1[0] = pos[0] + radius * cosf(theta1);
+        p1[1] = pos[1] + radius * sinf(theta1);
+        p1[2] = pos[2];
+        
+        p2[0] = pos[0] + radius * cosf(theta2);
+        p2[1] = pos[1] + radius * sinf(theta2);
+        p2[2] = pos[2];
         renderer_draw_wireframe_line(renderer, p1, p2);
         
         // YZ plane circle
-        p1 = vec3_add(pos, vec3_create(0.0f, radius * cosf(theta1), radius * sinf(theta1)));
-        p2 = vec3_add(pos, vec3_create(0.0f, radius * cosf(theta2), radius * sinf(theta2)));
+        p1[0] = pos[0];
+        p1[1] = pos[1] + radius * cosf(theta1);
+        p1[2] = pos[2] + radius * sinf(theta1);
+        
+        p2[0] = pos[0];
+        p2[1] = pos[1] + radius * cosf(theta2);
+        p2[2] = pos[2] + radius * sinf(theta2);
         renderer_draw_wireframe_line(renderer, p1, p2);
         
         // XZ plane circle
-        p1 = vec3_add(pos, vec3_create(radius * cosf(theta1), 0.0f, radius * sinf(theta1)));
-        p2 = vec3_add(pos, vec3_create(radius * cosf(theta2), 0.0f, radius * sinf(theta2)));
+        p1[0] = pos[0] + radius * cosf(theta1);
+        p1[1] = pos[1];
+        p1[2] = pos[2] + radius * sinf(theta1);
+        
+        p2[0] = pos[0] + radius * cosf(theta2);
+        p2[1] = pos[1];
+        p2[2] = pos[2] + radius * sinf(theta2);
         renderer_draw_wireframe_line(renderer, p1, p2);
     }
 }
@@ -235,7 +266,7 @@ void renderer_draw_body(Renderer* renderer, RigidBody body) {
             renderer_draw_wireframe_box(renderer, body.pos, body.size, body.rot);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, body.pos, body.size.x);
+            renderer_draw_wireframe_sphere(renderer, body.pos, body.size[0]);
             break;
     }
 }
@@ -244,23 +275,19 @@ void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim)
     renderer_clear(renderer);
     
     // Draw coordinate axes
+    niknum origin[3] = {0, 0, 0};
+    niknum x_axis[3] = {1, 0, 0};
+    niknum y_axis[3] = {0, 1, 0};
+    niknum z_axis[3] = {0, 0, 1};
+    
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // X axis (red)
-    renderer_draw_wireframe_line(renderer, 
-        vec3_create(0, 0, 0), 
-        vec3_create(1, 0, 0)
-    );
+    renderer_draw_wireframe_line(renderer, origin, x_axis);
     
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);  // Y axis (green)
-    renderer_draw_wireframe_line(renderer,
-        vec3_create(0, 0, 0),
-        vec3_create(0, 1, 0)
-    );
+    renderer_draw_wireframe_line(renderer, origin, y_axis);
     
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Z axis (blue)
-    renderer_draw_wireframe_line(renderer,
-        vec3_create(0, 0, 0),
-        vec3_create(0, 0, 1)
-    );
+    renderer_draw_wireframe_line(renderer, origin, z_axis);
     
     // Draw all bodies
     for (int i = 0; i < sim->rigidBodyCount; i++) {

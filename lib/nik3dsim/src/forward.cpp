@@ -1,117 +1,141 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
-
 #include "forward.hpp"
+#include "math.hpp"
 
 namespace nik3dsim {
-    // RigidBody functions remain the same up to integrate
-    void rigidbody_init(RigidBody* body, BodyType type, Vec3 size, float density, Vec3 pos, Vec3 angles) {
+    void rigidbody_init(RigidBody* body, BodyType type, niknum size[3], niknum density, niknum pos[3], niknum angles[3]) {
         body->type = type;
-        body->size = size;
+        for(int i = 0; i < 3; i++) {
+            body->size[i] = size[i];
+            body->pos[i] = pos[i];
+            body->vel[i] = 0.0f;
+            body->omega[i] = 0.0f;
+        }
         
-        body->pos = pos;
         // Initialize rotation from Euler angles
-        float cx = cosf(angles.x * 0.5f);
-        float cy = cosf(angles.y * 0.5f);
-        float cz = cosf(angles.z * 0.5f);
-        float sx = sinf(angles.x * 0.5f);
-        float sy = sinf(angles.y * 0.5f);
-        float sz = sinf(angles.z * 0.5f);
-        body->rot = quat_create(
-            sx * cy * cz - cx * sy * sz,
-            cx * sy * cz + sx * cy * sz,
-            cx * cy * sz - sx * sy * cz,
-            cx * cy * cz + sx * sy * sz
-        );
+        niknum cx = cosf(angles[0] * 0.5f);
+        niknum cy = cosf(angles[1] * 0.5f);
+        niknum cz = cosf(angles[2] * 0.5f);
+        niknum sx = sinf(angles[0] * 0.5f);
+        niknum sy = sinf(angles[1] * 0.5f);
+        niknum sz = sinf(angles[2] * 0.5f);
         
-        body->vel = vec3_create(0, 0, 0);
-        body->omega = vec3_create(0, 0, 0);
+        body->rot[0] = sx * cy * cz - cx * sy * sz;  // x
+        body->rot[1] = cx * sy * cz + sx * cy * sz;  // y
+        body->rot[2] = cx * cy * sz - sx * sy * cz;  // z
+        body->rot[3] = cx * cy * cz + sx * sy * sz;  // w
 
-        float Ix, Iy, Iz;
+        niknum Ix, Iy, Iz;
         
         if (density > 0.0f) {
-            float mass;
+            niknum mass;
             switch(type) {
                 case BODY_BOX:
-                    mass = density * size.x * size.y * size.z;
+                    mass = density * size[0] * size[1] * size[2];
                     body->invMass = 1.0f / mass;
-                    Ix = mass / 12.0f * (size.y * size.y + size.z * size.z);
-                    Iy = mass / 12.0f * (size.x * size.x + size.z * size.z);
-                    Iz = mass / 12.0f * (size.x * size.x + size.y * size.y);
-                    body->invInertia = vec3_create(1.0f / Ix, 1.0f / Iy, 1.0f / Iz);
+                    Ix = mass / 12.0f * (size[1] * size[1] + size[2] * size[2]);
+                    Iy = mass / 12.0f * (size[0] * size[0] + size[2] * size[2]);
+                    Iz = mass / 12.0f * (size[0] * size[0] + size[1] * size[1]);
+                    body->invInertia[0] = 1.0f / Ix;
+                    body->invInertia[1] = 1.0f / Iy;
+                    body->invInertia[2] = 1.0f / Iz;
                     break;
                     
                 case BODY_SPHERE:
-                    mass = 4.0f/3.0f * M_PI * size.x * size.x * size.x * density;
+                    mass = 4.0f/3.0f * M_PI * size[0] * size[0] * size[0] * density;
                     body->invMass = 1.0f / mass;
-                    float I = 2.0f/5.0f * mass * size.x * size.x;
-                    body->invInertia = vec3_create(1.0f / I, 1.0f / I, 1.0f / I);
+                    niknum I = 2.0f/5.0f * mass * size[0] * size[0];
+                    body->invInertia[0] = 1.0f / I;
+                    body->invInertia[1] = 1.0f / I;
+                    body->invInertia[2] = 1.0f / I;
                     break;
             }
         } else {
             body->invMass = 0.0f;
-            body->invInertia = vec3_create(0, 0, 0);
+            body->invInertia[0] = 0.0f;
+            body->invInertia[1] = 0.0f;
+            body->invInertia[2] = 0.0f;
         }
     }
 
-    void rigidbody_integrate(RigidBody* body, float dt, Vec3 gravity) {
+    void rigidbody_integrate(RigidBody* body, niknum dt, niknum gravity[3]) {
         // Store previous state
-        body->prevPos = body->pos;
-        body->prevRot = body->rot;
+        for(int i = 0; i < 3; i++) {
+            body->prevPos[i] = body->pos[i];
+        }
+        for(int i = 0; i < 4; i++) {
+            body->prevRot[i] = body->rot[i];
+        }
         
         // Update linear state
-        Vec3 fext = vec3_scale(gravity, body->invMass);
-        body->vel = vec3_add(body->vel, vec3_scale(fext, dt));
-        body->pos = vec3_add(body->pos, vec3_scale(body->vel, dt));
+        niknum fext[3];
+        vec3_scale(fext, gravity, body->invMass > 0.0f);
+        
+        niknum dv[3], dx[3];
+        vec3_scale(dv, fext, dt);
+        vec3_add(body->vel, body->vel, dv);
+        
+        vec3_scale(dx, body->vel, dt);
+        vec3_add(body->pos, body->pos, dx);
         
         // Angular motion in body space
-        Vec3 I_omega = vec3_create(
-            body->omega.x / body->invInertia.x,
-            body->omega.y / body->invInertia.y,
-            body->omega.z / body->invInertia.z
-        );
+        niknum I_omega[3];
+        I_omega[0] = body->invInertia[0] == 0.0f ? 0.0f : body->omega[0] / body->invInertia[0];
+        I_omega[1] = body->invInertia[1] == 0.0f ? 0.0f : body->omega[1] / body->invInertia[1];
+        I_omega[2] = body->invInertia[2] == 0.0f ? 0.0f : body->omega[2] / body->invInertia[2];
         
         // Compute cross product in body space
-        Vec3 cross_term = vec3_cross(body->omega, I_omega);
-        Vec3 torque = vec3_create(0, 0, 0);  // No external torque for now
+        niknum cross_term[3], torque[3] = {0, 0, 0};  // No external torque for now
+        vec3_cross(cross_term, body->omega, I_omega);
         
         // Update angular velocity (in body space)
-        Vec3 angular_accel = vec3_create(
-            body->invInertia.x * (torque.x - cross_term.x),
-            body->invInertia.y * (torque.y - cross_term.y),
-            body->invInertia.z * (torque.z - cross_term.z)
-        );
-        body->omega = vec3_add(body->omega, vec3_scale(angular_accel, dt));
+        niknum angular_accel[3];
+        angular_accel[0] = body->invInertia[0] * (torque[0] - cross_term[0]);
+        angular_accel[1] = body->invInertia[1] * (torque[1] - cross_term[1]);
+        angular_accel[2] = body->invInertia[2] * (torque[2] - cross_term[2]);
+        
+        niknum dw[3];
+        vec3_scale(dw, angular_accel, dt);
+        vec3_add(body->omega, body->omega, dw);
         
         // Update rotation using exponential map
-        float omega_len = vec3_length(body->omega);
-        float omega_dt = omega_len * dt;
+        niknum omega_len = vec3_length(body->omega);
+        niknum omega_dt = omega_len * dt;
         
         if (omega_dt > 1e-6f) {
-            float s = sinf(omega_dt * 0.5f);
+            niknum s = sinf(omega_dt * 0.5f);
+            niknum inv_omega_len = s / omega_len;
+            niknum c = cosf(omega_dt * 0.5f);
+            
             // Create incremental rotation quaternion
-            Quat dq = quat_create(
-                body->omega.x * s / omega_len,
-                body->omega.y * s / omega_len,
-                body->omega.z * s / omega_len,
-                cosf(omega_dt * 0.5f)
-            );
+            niknum dq[4];
+            dq[0] = body->omega[0] * inv_omega_len;  // x
+            dq[1] = body->omega[1] * inv_omega_len;  // y
+            dq[2] = body->omega[2] * inv_omega_len;  // z
+            dq[3] = c;                               // w
             
             // Right multiply for body-space update
-            body->rot = quat_multiply(body->rot, dq);
+            niknum new_rot[4];
+            quat_multiply(new_rot, body->rot, dq);
             
-            // Normalize quaternion (using your implementation)
-            body->rot = quat_normalize(body->rot);
+            // Normalize quaternion
+            quat_normalize(body->rot, new_rot);
         }
     }
 
-    void simulator_init(RigidBodySimulator* sim, Vec3 gravity, float timeStepSize, int numPosIters) {
-        sim->gravity = gravity;
+    void solve_hinge_gauss_seidel_sor(RigidBody* body0, RigidBody* body1, HingeConstraint* constraint, niknum dt, niknum omega) {
+        // TODO
+    }
+
+    void simulator_init(RigidBodySimulator* sim, niknum gravity[3], niknum timeStepSize, int numPosIters) {
+        vec3_copy(sim->gravity, gravity);
         sim->dt = timeStepSize;
         sim->posIters = numPosIters;
         sim->rigidBodyCount = 0;
-        sim->constraintCount = 0;
+        sim->distanceConstraintCount = 0;
+        sim->hingeConstraintCount = 0;
     }
 
     void simulator_simulate(RigidBodySimulator* sim) {        
@@ -124,7 +148,13 @@ namespace nik3dsim {
         
         // Solve position constraints
         for (int iter = 0; iter < sim->posIters; iter++) {
-            // TODO: Implement constraint solving
+            for (int i = 0; i < sim->distanceConstraintCount; i++) {
+                // TODO: Implement distance constraints
+            }
+
+            for (int i = 0; i < sim->hingeConstraintCount; i++) {
+                // TODO: Implement hinge constraints
+            }
         }
         
         // Update velocities
@@ -132,35 +162,33 @@ namespace nik3dsim {
             RigidBody* body = &sim->rigidBodies[i];
             
             // Update linear velocity from position change
-            // Vec3 deltaPos = vec3_sub(body->pos, body->prevPos);
-            // body->vel = vec3_scale(deltaPos, 1.0f / sim->dt);
+            // niknum deltaPos[3];
+            // vec3_sub(deltaPos, body->pos, body->prevPos);
+            // vec3_scale(body->vel, deltaPos, 1.0f / sim->dt);
             
             // Update angular velocity from quaternion change
-            // Quat deltaQ = quat_multiply(body->rot, quat_conjugate(body->prevRot));
-            // float sign = copysignf(1.0f, deltaQ.w);  // Built-in branchless sign function
-            // body->omega = vec3_scale(vec3_create(deltaQ.x, deltaQ.y, deltaQ.z), (2.0f / sim->dt) * sign);
+            // niknum deltaQ[4];
+            // niknum conj[4];
+            // quat_conjugate(conj, body->prevRot);
+            // quat_multiply(deltaQ, body->rot, conj);
+            // niknum sign = copysignf(1.0f, deltaQ[3]);  // Built-in branchless sign function
+            // vec3_scale(body->omega, (niknum[3]){deltaQ[0], deltaQ[1], deltaQ[2]}, (2.0f / sim->dt) * sign);
 
             // Apply damping
-            // body->vel = vec3_scale(body->vel, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
-            // body->omega = vec3_scale(body->omega, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
+            // vec3_scale(body->vel, body->vel, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
+            // vec3_scale(body->omega, body->omega, fmaxf(1.0f - body->damping * sim->dt, 0.0f));
         }
     }
 
-    // Modified print function to use enum
     void print_simulation_state(RigidBodySimulator* sim) {
-        // printf("Simulation state:\n");
-        // printf("Number of bodies: %d\n", sim->rigidBodyCount);
-        // printf("Number of constraints: %d\n", sim->constraintCount);
-        
         for (int i = 0; i < sim->rigidBodyCount; i++) {
             RigidBody* body = &sim->rigidBodies[i];
             printf(" body %d (%s):", i, body->type == BODY_BOX ? "box" : "sphere");
-            printf(" pos: %.2f, %.2f, %.2f", body->pos.x, body->pos.y, body->pos.z);
-            printf(" vel: %.2f, %.2f, %.2f", body->vel.x, body->vel.y, body->vel.z);
-            printf(" rot: %.2f, %.2f, %.2f, %.2f", body->rot.x, body->rot.y, body->rot.z, body->rot.w);
-            printf(" omega: %.2f, %.2f, %.2f", body->omega.x, body->omega.y, body->omega.z);
+            printf(" pos: %.2f, %.2f, %.2f", body->pos[0], body->pos[1], body->pos[2]);
+            printf(" vel: %.2f, %.2f, %.2f", body->vel[0], body->vel[1], body->vel[2]);
+            printf(" rot: %.2f, %.2f, %.2f, %.2f", body->rot[0], body->rot[1], body->rot[2], body->rot[3]);
+            printf(" omega: %.2f, %.2f, %.2f", body->omega[0], body->omega[1], body->omega[2]);
             printf("\n");
         }
-        printf("----------------------------------------------------\n");
     }
-}
+} // namespace nik3dsim

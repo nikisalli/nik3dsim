@@ -1,56 +1,78 @@
 #include "nik3dsim.h"
 #include <SDL2/SDL.h>
+
 using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and substeps for stability
     RigidBodySimulator sim;
+    niknum gravity[3] = {0, 0, -9.81};  // No gravity for pure rotation demo
     simulator_init(
         &sim,
-        vec3_create(0, 0, -0.1), // No gravity for pure rotation demo
-        0.00001f, // 1ms timestep for better stability
-        1 // 1 position iteration (no constraints)
+        gravity,
+        0.00001f,  // 1ms timestep for better stability
+        1          // 1 position iteration (no constraints)
     );
-
+    
     // Create a body with distinct principal moments of inertia
     RigidBody body;
-    
     // Initialize with dummy size - we'll override the inertia
+    niknum size[3] = {1.0f, 0.5f, 0.1f};  // Size doesn't matter as we'll override inertia
+    niknum pos[3] = {0, 0, 0};            // At origin
+    niknum angles[3] = {0, 0, 0};         // No initial rotation
+    
     rigidbody_init(
         &body,
         BODY_BOX,
-        vec3_create(1.0f, 0.5f, 0.1f), // Size doesn't matter as we'll override inertia
-        1.0f, // Density of 1 for simplicity
-        vec3_create(0, 0, 0), // At origin
-        vec3_create(0, 0, 0) // No initial rotation
-    );    
-
+        size,
+        1.0f,  // Density of 1 for simplicity
+        pos,
+        angles
+    );
+    
+    printf("body inertia: %.2f, %.2f, %.2f\n", 
+           body.invInertia[0], body.invInertia[1], body.invInertia[2]);
+    printf("body mass: %.2f\n", body.invMass);
+    
     // Set initial angular velocity mostly around the middle (unstable) axis
     // with small perturbations on other axes to trigger the instability
-    body.omega = vec3_create(0.0f, 2.0f, 0.01f);
-    body.vel = vec3_create(0.0f, 0.0f, 3.0f);
-    body.damping = 0;
-
+    niknum init_omega[3] = {0.0f, 2.0f, 0.01f};
+    niknum init_vel[3] = {0.0f, 0.0f, 3.0f};
+    
+    for(int i = 0; i < 3; i++) {
+        body.omega[i] = init_omega[i];
+        body.vel[i] = init_vel[i];
+    }
+    
     // Add body to simulator
     sim.rigidBodies[sim.rigidBodyCount++] = body;
-
-    // Rest of your code remains the same...
+    
+    // Initialize renderer
     Renderer renderer;
     if (!renderer_init(&renderer, 800, 600)) {
         printf("Failed to initialize renderer\n");
         return 1;
     }
-
+    
+    // Set up camera
     Camera camera;
-    camera.position = vec3_create(3.0f, 3.0f, 3.0f);
-    camera.target = vec3_create(0.0f, 0.0f, 0.0f);
-    camera.up = vec3_create(0.0f, 0.0f, 1.0f);
+    niknum cam_pos[3] = {3.0f, 3.0f, 3.0f};
+    niknum cam_target[3] = {0.0f, 0.0f, 0.0f};
+    niknum cam_up[3] = {0.0f, 0.0f, 1.0f};
+    
+    for(int i = 0; i < 3; i++) {
+        camera.position[i] = cam_pos[i];
+        camera.target[i] = cam_target[i];
+        camera.up[i] = cam_up[i];
+    }
+    
     camera.fov = 60.0f;
     camera.aspectRatio = 800.0f / 600.0f;
     camera.nearPlane = 0.1f;
     camera.farPlane = 100.0f;
     renderer_set_camera(&renderer, camera);
-
+    
+    // Main loop
     bool running = true;
     SDL_Event event;
     Uint32 lastTime = SDL_GetTicks();
@@ -73,11 +95,11 @@ int main() {
                     break;
             }
         }
-
+        
         Uint32 currentTime = SDL_GetTicks();
         float deltaTime = (currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
-
+        
         static float accumulator = 0.0f;
         accumulator += deltaTime;
         
@@ -85,11 +107,11 @@ int main() {
             simulator_simulate(&sim);
             accumulator -= sim.dt;
         }
-
+        
         renderer_draw_simulation(&renderer, &sim);
         SDL_Delay(1);
     }
-
+    
     renderer_cleanup(&renderer);
     return 0;
 }

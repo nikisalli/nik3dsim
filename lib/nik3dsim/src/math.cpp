@@ -4,283 +4,119 @@
 
 namespace nik3dsim {
     // Vec3 operations
-    Vec3 vec3_create(float x, float y, float z) {
-        Vec3 v = {x, y, z};
-        return v;
+    void vec3_copy(niknum res[3], niknum v[3]) {
+        res[0] = v[0];
+        res[1] = v[1];
+        res[2] = v[2];
     }
 
-    Vec3 vec3_add(Vec3 a, Vec3 b) {
-        return vec3_create(a.x + b.x, a.y + b.y, a.z + b.z);
+    void vec3_zero(niknum res[3]) {
+        res[0] = 0;
+        res[1] = 0;
+        res[2] = 0;
     }
 
-    Vec3 vec3_sub(Vec3 a, Vec3 b) {
-        return vec3_create(a.x - b.x, a.y - b.y, a.z - b.z);
+    void vec3_add(niknum res[3], niknum a[3], niknum b[3]) {
+        res[0] = a[0] + b[0];
+        res[1] = a[1] + b[1];
+        res[2] = a[2] + b[2];
     }
 
-    Vec3 vec3_scale(Vec3 v, float s) {
-        return vec3_create(v.x * s, v.y * s, v.z * s);
+    void vec3_sub(niknum res[3], niknum a[3], niknum b[3]) {
+        res[0] = a[0] - b[0];
+        res[1] = a[1] - b[1];
+        res[2] = a[2] - b[2];
     }
 
-    float vec3_dot(Vec3 a, Vec3 b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
+    void vec3_scale(niknum res[3], niknum a[3], niknum s) {
+        res[0] = a[0] * s;
+        res[1] = a[1] * s;
+        res[2] = a[2] * s;
     }
 
-    Vec3 vec3_cross(Vec3 a, Vec3 b) {
-        return vec3_create(
-            a.y * b.z - a.z * b.y,
-            a.z * b.x - a.x * b.z,
-            a.x * b.y - a.y * b.x
-        );
+    niknum vec3_dot(niknum a[3], niknum b[3]) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
 
-    float vec3_length(Vec3 v) {
-        return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    void vec3_cross(niknum res[3], niknum a[3], niknum b[3]) {
+        res[0] = a[1] * b[2] - a[2] * b[1];
+        res[1] = a[2] * b[0] - a[0] * b[2];
+        res[2] = a[0] * b[1] - a[1] * b[0];
     }
 
-    Vec3 vec3_normalize(Vec3 v) {
-        float len = vec3_length(v);
+    niknum vec3_length(niknum v[3]) {
+        return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    }
+
+    void vec3_normalize(niknum res[3], niknum v[3]) {
+        niknum len = vec3_length(v);
         if (len > 0) {
-            return vec3_scale(v, 1.0f / len);
+            niknum invLen = 1.0f / len;
+            res[0] = v[0] * invLen;
+            res[1] = v[1] * invLen;
+            res[2] = v[2] * invLen;
+        } else {
+            res[0] = v[0];
+            res[1] = v[1];
+            res[2] = v[2];
         }
-        return v;
     }
 
-    Vec3 vec3_quat_rotate(Quat q, Vec3 v) {
+    void vec3_quat_rotate(niknum res[3], niknum q[4], niknum v[3]) {
         // Using the formula: v' = q * v * q^(-1)
         // Optimized version that doesn't construct intermediate quaternions
-        
-        float x2 = q.x * 2.0f;
-        float y2 = q.y * 2.0f;
-        float z2 = q.z * 2.0f;
-        float xx2 = q.x * x2;
-        float xy2 = q.x * y2;
-        float xz2 = q.x * z2;
-        float yy2 = q.y * y2;
-        float yz2 = q.y * z2;
-        float zz2 = q.z * z2;
-        float wx2 = q.w * x2;
-        float wy2 = q.w * y2;
-        float wz2 = q.w * z2;
+        niknum x2 = q[0] * 2.0f;
+        niknum y2 = q[1] * 2.0f;
+        niknum z2 = q[2] * 2.0f;
+        niknum xx2 = q[0] * x2;
+        niknum xy2 = q[0] * y2;
+        niknum xz2 = q[0] * z2;
+        niknum yy2 = q[1] * y2;
+        niknum yz2 = q[1] * z2;
+        niknum zz2 = q[2] * z2;
+        niknum wx2 = q[3] * x2;
+        niknum wy2 = q[3] * y2;
+        niknum wz2 = q[3] * z2;
 
-        return vec3_create(
-            v.x * (1.0f - yy2 - zz2) + v.y * (xy2 - wz2) + v.z * (xz2 + wy2),
-            v.x * (xy2 + wz2) + v.y * (1.0f - xx2 - zz2) + v.z * (yz2 - wx2),
-            v.x * (xz2 - wy2) + v.y * (yz2 + wx2) + v.z * (1.0f - xx2 - yy2)
-        );
+        res[0] = v[0] * (1.0f - yy2 - zz2) + v[1] * (xy2 - wz2) + v[2] * (xz2 + wy2);
+        res[1] = v[0] * (xy2 + wz2) + v[1] * (1.0f - xx2 - zz2) + v[2] * (yz2 - wx2);
+        res[2] = v[0] * (xz2 - wy2) + v[1] * (yz2 + wx2) + v[2] * (1.0f - xx2 - yy2);
     }
 
-    // Vec4 operations
-    Vec4 vec4_create(float x, float y, float z, float w) {
-        Vec4 v = {x, y, z, w};
-        return v;
-    }
-
-    Vec4 vec4_add(Vec4 a, Vec4 b) {
-        return vec4_create(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-    }
-
-    Vec4 vec4_sub(Vec4 a, Vec4 b) {
-        return vec4_create(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-    }
-
-    Vec4 vec4_scale(Vec4 v, float s) {
-        return vec4_create(v.x * s, v.y * s, v.z * s, v.w * s);
-    }
-
-    float vec4_dot(Vec4 a, Vec4 b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-    }
-
-    Vec4 vec4_cross(Vec4 a, Vec4 b) {
-        return vec4_create(
-            a.y * b.z - a.z * b.y,
-            a.z * b.x - a.x * b.z,
-            a.x * b.y - a.y * b.x,
-            0.0f
-        );
-    }
-
-    float vec4_length(Vec4 v) {
-        return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
-    }
-
-    Vec4 vec4_normalize(Vec4 v) {
-        float len = vec4_length(v);
-        if (len > 0) {
-            return vec4_scale(v, 1.0f / len);
-        }
-        return v;
+    void vec3_mult(niknum res[3], niknum a[3], niknum b[3]) {
+        res[0] = a[0] * b[0];
+        res[1] = a[1] * b[1];
+        res[2] = a[2] * b[2];
     }
 
     // Quat operations
-    Quat quat_create(float x, float y, float z, float w) {
-        Quat q = {x, y, z, w};
-        return q;
+    void quat_multiply(niknum res[4], niknum a[4], niknum b[4]) {
+        res[0] = a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1];  // x
+        res[1] = a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0];  // y
+        res[2] = a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3];  // z
+        res[3] = a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2];  // w
     }
 
-    Quat quat_multiply(Quat a, Quat b) {
-        return quat_create(
-            a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-            a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
-            a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
-        );
-    }
-
-    Quat quat_invert(Quat q) {
-        float norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+    void quat_normalize(niknum res[4], niknum q[4]) {
+        niknum norm = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
         if (norm > 0) {
-            float invNorm = 1.0f / norm;
-            return quat_create(-q.x * invNorm, -q.y * invNorm, -q.z * invNorm, q.w * invNorm);
-        }
-        return q;
-    }
-
-    Quat quat_normalize(Quat q) {
-        float norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-        if (norm > 0) {
-            float invNorm = 1.0f / norm;
-            return quat_create(q.x * invNorm, q.y * invNorm, q.z * invNorm, q.w * invNorm);
-        }
-        return q;
-    }
-
-    Quat quat_conjugate(Quat q) {
-        return quat_create(-q.x, -q.y, -q.z, q.w);
-    }
-
-    // Mat3 operations
-    Mat3 mat3_create(
-        float m00, float m01, float m02,  // first row
-        float m10, float m11, float m12,  // second row
-        float m20, float m21, float m22   // third row
-    ) {
-        Mat3 m;
-        // Store in column major order
-        m.m[0] = m00; m.m[3] = m01; m.m[6] = m02;
-        m.m[1] = m10; m.m[4] = m11; m.m[7] = m12;
-        m.m[2] = m20; m.m[5] = m21; m.m[8] = m22;
-        return m;
-    }
-
-    Mat3 mat3_identity() {
-        return mat3_create(
-            1, 0, 0,
-            0, 1, 0,
-            0, 0, 1
-        );
-    }
-
-    Mat3 mat3_scale(Mat3 m, float s) {
-        Mat3 result;
-        for (int i = 0; i < 9; i++) {
-            result.m[i] = m.m[i] * s;
-        }
-        return result;
-    }
-
-    Mat3 mat3_add(Mat3 a, Mat3 b) {
-        Mat3 result;
-        for (int i = 0; i < 9; i++) {
-            result.m[i] = a.m[i] + b.m[i];
-        }
-        return result;
-    }
-
-    Mat3 mat3_multiply(Mat3 a, Mat3 b) {
-        Mat3 result;
-        
-        // Unroll the loops for better performance
-        result.m[0] = a.m[0] * b.m[0] + a.m[3] * b.m[1] + a.m[6] * b.m[2];
-        result.m[1] = a.m[1] * b.m[0] + a.m[4] * b.m[1] + a.m[7] * b.m[2];
-        result.m[2] = a.m[2] * b.m[0] + a.m[5] * b.m[1] + a.m[8] * b.m[2];
-        
-        result.m[3] = a.m[0] * b.m[3] + a.m[3] * b.m[4] + a.m[6] * b.m[5];
-        result.m[4] = a.m[1] * b.m[3] + a.m[4] * b.m[4] + a.m[7] * b.m[5];
-        result.m[5] = a.m[2] * b.m[3] + a.m[5] * b.m[4] + a.m[8] * b.m[5];
-        
-        result.m[6] = a.m[0] * b.m[6] + a.m[3] * b.m[7] + a.m[6] * b.m[8];
-        result.m[7] = a.m[1] * b.m[6] + a.m[4] * b.m[7] + a.m[7] * b.m[8];
-        result.m[8] = a.m[2] * b.m[6] + a.m[5] * b.m[7] + a.m[8] * b.m[8];
-        
-        return result;
-    }
-
-    Vec3 mat3_multiply_vec3(Mat3 m, Vec3 v) {
-        return vec3_create(
-            m.m[0] * v.x + m.m[3] * v.y + m.m[6] * v.z,
-            m.m[1] * v.x + m.m[4] * v.y + m.m[7] * v.z,
-            m.m[2] * v.x + m.m[5] * v.y + m.m[8] * v.z
-        );
-    }
-
-    Mat3 mat3_transpose(Mat3 m) {
-        return mat3_create(
-            m.m[0], m.m[1], m.m[2],
-            m.m[3], m.m[4], m.m[5],
-            m.m[6], m.m[7], m.m[8]
-        );
-    }
-
-    Mat3 quat_to_mat3(Quat q) {
-        float x2 = q.x * 2.0f;
-        float y2 = q.y * 2.0f;
-        float z2 = q.z * 2.0f;
-        float xx = q.x * x2;
-        float xy = q.x * y2;
-        float xz = q.x * z2;
-        float yy = q.y * y2;
-        float yz = q.y * z2;
-        float zz = q.z * z2;
-        float wx = q.w * x2;
-        float wy = q.w * y2;
-        float wz = q.w * z2;
-
-        return mat3_create(
-            1.0f - (yy + zz), xy - wz, xz + wy,
-            xy + wz, 1.0f - (xx + zz), yz - wx,
-            xz - wy, yz + wx, 1.0f - (xx + yy)
-        );
-    }
-
-    Quat mat3_to_quat(Mat3 m) {
-        float trace = m.m[0] + m.m[4] + m.m[8];
-        Quat q;
-
-        if (trace > 0.0f) {
-            float s = sqrtf(trace + 1.0f);
-            q.w = s * 0.5f;
-            s = 0.5f / s;
-            q.x = (m.m[5] - m.m[7]) * s;
-            q.y = (m.m[6] - m.m[2]) * s;
-            q.z = (m.m[1] - m.m[3]) * s;
+            niknum invNorm = 1.0f / sqrtf(norm);
+            res[0] = q[0] * invNorm;
+            res[1] = q[1] * invNorm;
+            res[2] = q[2] * invNorm;
+            res[3] = q[3] * invNorm;
         } else {
-            // Find largest diagonal element
-            int i = 0;
-            if (m.m[4] > m.m[0]) i = 1;
-            if (m.m[8] > m.m[i*3+i]) i = 2;
-
-            static const int NEXT[3] = {1, 2, 0};
-            int j = NEXT[i];
-            int k = NEXT[j];
-
-            float s = sqrtf(m.m[i*3+i] - m.m[j*3+j] - m.m[k*3+k] + 1.0f);
-            float* qv[3] = {&q.x, &q.y, &q.z};
-            *qv[i] = s * 0.5f;
-            s = 0.5f / s;
-            q.w = (m.m[k*3+j] - m.m[j*3+k]) * s;
-            *qv[j] = (m.m[j*3+i] + m.m[i*3+j]) * s;
-            *qv[k] = (m.m[k*3+i] + m.m[i*3+k]) * s;
+            res[0] = q[0];
+            res[1] = q[1];
+            res[2] = q[2];
+            res[3] = q[3];
         }
-
-        return quat_normalize(q);
     }
 
-    Mat3 mat3_skew_symmetric(Vec3 v) {
-        return mat3_create(
-            0, -v.z, v.y,
-            v.z, 0, -v.x,
-            -v.y, v.x, 0
-        );
+    void quat_conjugate(niknum res[4], niknum q[4]) {
+        res[0] = -q[0];  // -x
+        res[1] = -q[1];  // -y
+        res[2] = -q[2];  // -z
+        res[3] = q[3];   // w
     }
-}
+} // namespace nik3dsim
