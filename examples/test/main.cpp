@@ -36,8 +36,8 @@ int main() {
     
     // Set initial angular velocity mostly around the middle (unstable) axis
     // with small perturbations on other axes to trigger the instability
-    niknum init_omega[3] = {0.0f, 2.0f, 0.01f};
-    niknum init_vel[3] = {0.0f, 0.0f, 3.0f};
+    niknum init_omega[3] = {0.0f, 10.0f, 0.01f};
+    niknum init_vel[3] = {0.0f, 0.0f, 6.0f};
     
     for(int i = 0; i < 3; i++) {
         body.omega[i] = init_omega[i];

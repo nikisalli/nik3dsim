@@ -11,10 +11,6 @@ namespace nik3dsim {
         BODY_BOX
     } BodyType;
 
-    // Forward declarations for struct dependencies
-    struct RigidBody;
-    struct DistanceConstraint;
-
     // RigidBody struct
     typedef struct RigidBody {
         BodyType type;
@@ -32,39 +28,29 @@ namespace nik3dsim {
         niknum invInertia[3];
     } RigidBody;
 
-    // Distance Constraint struct
-    typedef struct DistanceConstraint {
-        size_t body0;
-        size_t body1;
+    typedef struct PositionalConstraint {
+        size_t b0;
+        size_t b1;
         
-        niknum localPos0[3];
-        niknum localPos1[3];
+        niknum r0[3];  // Attachment point in body0's local space
+        niknum r1[3];  // Attachment point in body1's local space
         
-        niknum distance;
-    } DistanceConstraint;
-
-    typedef struct HingeConstraint {
-        size_t body0;
-        size_t body1;
-
-        niknum local_pos0[3];  // Local attachment point on body0 
-        niknum local_pos1[3];  // Local attachment point on body1
-        niknum local_axis0[3]; // Local hinge axis on body0
-        niknum local_axis1[3]; // Local hinge axis on body1
-    } HingeConstraint;
+        niknum compliance;     // α (inverse stiffness)
+        niknum lambda;         // Lagrange multiplier
+        
+    } PositionalConstraint;
 
     // Simulator struct
     typedef struct {
         niknum gravity[3];
         niknum dt;
+        niknum damping;
         
         RigidBody rigidBodies[100];
         size_t rigidBodyCount;
         
-        DistanceConstraint distanceConstraints[100];
-        size_t distanceConstraintCount;
-        HingeConstraint hingeConstraints[100];
-        size_t hingeConstraintCount;
+        PositionalConstraint positionalConstraints[100];
+        size_t positionalConstraintCount;
 
         size_t posIters;
     } RigidBodySimulator;

@@ -87,7 +87,7 @@ void renderer_set_camera(Renderer* renderer, Camera camera) {
     
     vec3_cross(y, z, x);
     
-    vec3_scale(neg_pos, camera.position, -1.0f);
+    vec3_scl(neg_pos, camera.position, -1.0f);
     
     // Build view matrix (row-major)
     renderer->viewMatrix[0] = x[0];  
