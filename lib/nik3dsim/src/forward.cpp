@@ -1,4 +1,3 @@
-#include <numbers>
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
@@ -63,16 +62,16 @@ namespace nik3dsim {
     }
 
     void rigidbody_integrate(RigidBody* body, niknum dt, niknum gravity[3]) {
+        // Store previous state
+        vec3_copy(body->prevPos, body->pos);
+        vec4_copy(body->prevRot, body->rot);
+
         // Update linear state
         niknum fext[3];
         vec3_scl(fext, gravity, body->invMass > 0.0f);
         
-        niknum dv[3], dx[3];
-        vec3_scl(dv, fext, dt);
-        vec3_add(body->vel, body->vel, dv);
-        
-        vec3_scl(dx, body->vel, dt);
-        vec3_add(body->pos, body->pos, dx);
+        vec3_addscl(body->vel, body->vel, fext, dt);
+        vec3_addscl(body->pos, body->pos, body->vel, dt);
         
         // Angular motion in body space
         niknum I_omega[3];
@@ -117,57 +116,77 @@ namespace nik3dsim {
             // Normalize quaternion
             quat_normalize(body->rot, new_rot);
         }
-
-        // Store previous state
-        vec3_copy(body->prevPos, body->pos);
-        vec4_copy(body->prevRot, body->rot);
     }
 
     // void solve_hinge_gauss_seidel_sor(RigidBody* body0, RigidBody* body1, HingeConstraint* constraint, niknum dt, niknum omega) {
     //     // TODO
     // }
 
-    void solve_positional_constraint(RigidBody* b0, RigidBody* b1, PositionalConstraint* constraint, niknum dt) {
-        niknum a[3], b[3], n[3], q0[4], q1[4], c, w0, w1, dlambda;
+    void local2world(RigidBody* body, niknum res[3], niknum local[3]) {
+        vec3_copy(res, local);
+        vec3_quat_rotate(res, body->rot, res);
+        vec3_add(res, res, body->pos);
+    }
 
-        // Compute delta and decompose into direction and magnitude
-        vec3_add(a, b0->pos, constraint->r0);
-        vec3_subto(a, b1->pos);
-        vec3_subto(a, constraint->r1);
-        c = vec3_normalize(n, a);
+    void solve_positional_constraint(RigidBody* b0, RigidBody* b1, DistanceConstraint* constraint, niknum dt) {
+        niknum worldpos0[3], worldpos1[3];
 
-        // Compute generalized inverse masses
-        vec3_cross(a, constraint->r0, n);
-        vec3_mul(b, a, b0->invInertia);
-        w0 = vec3_dot(b, a) * b0->invMass;
+        local2world(b0, worldpos0, constraint->r0);
+        local2world(b1, worldpos1, constraint->r1);
 
-        vec3_cross(a, constraint->r1, n);
-        vec3_mul(b, a, b1->invInertia);
-        w1 = vec3_dot(b, a) * b1->invMass;
-
-        // Compute delta lambda
-        dlambda = (-c - constraint->compliance * constraint->lambda) / (w0 + w1 + (constraint->compliance / (dt * dt)));
-        constraint->lambda += dlambda;
-
-        // Compute impulse
-        vec3_scl(a, n, dlambda);
+        niknum n[3];
+        vec3_sub(n, worldpos1, worldpos0);
+        niknum c = vec3_normalize(n, n) - constraint->distance;
         
-        // Apply impulse
-        vec3_addscl(b0->pos, b0->pos, a, b0->invMass);
-        vec3_addscl(b1->pos, b1->pos, a, -b1->invMass);
+        niknum a0[3], a1[3], tmp[4], invrot0[4], invrot1[4];
+        vec3_sub(a0, worldpos0, b0->pos);
+        vec3_cross(tmp, a0, n);
+        quat_conj(invrot0, b0->rot);
+        vec3_quat_rotate(a0, invrot0, tmp);
+        vec3_sub(a1, worldpos1, b1->pos);
+        vec3_cross(tmp, a1, n);
+        quat_conj(invrot1, b1->rot);
+        vec3_quat_rotate(a1, invrot1, tmp);
 
-        // Apply torque
-        vec4_zero(q0);
-        vec3_cross(b, constraint->r0, a);
-        vec3_mul(q0, b, b0->invInertia);
-        quat_mul(q1, q0, b0->rot);
-        vec4_addscl(b0->rot, b0->rot, q1, 0.5f);
+        niknum w = a0[0] * a0[0] * b0->invInertia[0] + 
+                   a0[1] * a0[1] * b0->invInertia[1] +
+                   a0[2] * a0[2] * b0->invInertia[2] + b0->invMass +
+                   a1[0] * a1[0] * b1->invInertia[0] +
+                   a1[1] * a1[1] * b1->invInertia[1] +
+                   a1[2] * a1[2] * b1->invInertia[2] + b1->invMass;
+        
+        niknum alpha = constraint->compliance / dt / dt;
+        niknum lambda = -c / (w + alpha);
+        vec3_scl(n, n, -lambda);
 
-        vec4_zero(q0);
-        vec3_cross(b, constraint->r1, a);
-        vec3_mul(q0, b, b1->invInertia);
-        quat_mul(q1, q0, b1->rot);
-        vec4_addscl(b1->rot, b1->rot, q1, -0.5f);
+        niknum dom[3], drot[4];
+        vec3_addscl(b0->pos, b0->pos, n, b0->invMass);
+        vec3_copy(dom, n);
+        vec3_sub(dom, worldpos0, b0->pos);
+        vec3_cross(tmp, dom, n);
+        vec3_quat_rotate(dom, invrot0, tmp);
+        vec3_mul(dom, dom, b0->invInertia);
+        vec3_quat_rotate(dom, b0->rot, dom);
+        vec4_zero(drot);
+        vec3_copy(drot, dom);
+        quat_mul(tmp, drot, b0->rot);
+        vec4_addscl(b0->rot, b0->rot, tmp, 0.5f);
+        quat_normalize(b0->rot, b0->rot);
+
+        vec3_scl(n, n, -1.0f);
+
+        vec3_addscl(b1->pos, b1->pos, n, b1->invMass);
+        vec3_copy(dom, n);
+        vec3_sub(dom, worldpos1, b1->pos);
+        vec3_cross(tmp, dom, n);
+        vec3_quat_rotate(dom, invrot1, tmp);
+        vec3_mul(dom, dom, b1->invInertia);
+        vec3_quat_rotate(dom, b1->rot, dom);
+        vec4_zero(drot);
+        vec3_copy(drot, dom);
+        quat_mul(tmp, drot, b1->rot);
+        vec4_addscl(b1->rot, b1->rot, tmp, 0.5f);
+        quat_normalize(b1->rot, b1->rot);
     }
 
     void simulator_init(RigidBodySimulator* sim, niknum gravity[3], niknum timeStepSize, int numPosIters) {
@@ -187,13 +206,9 @@ namespace nik3dsim {
         }
         
         // Solve position constraints
-        for (int i = 0; i < sim->positionalConstraintCount; i++) {
-            sim->positionalConstraints[i].lambda = 0.0f;
-        }
-
         for (int iter = 0; iter < sim->posIters; iter++) {
             for (int i = 0; i < sim->positionalConstraintCount; i++) {
-                PositionalConstraint* constraint = &sim->positionalConstraints[i];
+                DistanceConstraint* constraint = &sim->positionalConstraints[i];
                 RigidBody* b0 = &sim->rigidBodies[constraint->b0];
                 RigidBody* b1 = &sim->rigidBodies[constraint->b1];
                 solve_positional_constraint(b0, b1, constraint, sim->dt);
@@ -207,7 +222,7 @@ namespace nik3dsim {
             // Update linear velocity from position change
             niknum dp[3];
             vec3_sub(dp, body->pos, body->prevPos);
-            vec3_addscl(body->vel, body->vel, dp, 1.0f / sim->dt);
+            vec3_scl(body->vel, dp, 1.0f / sim->dt);
             
             // Update angular velocity from quaternion change
             niknum dq[4], tmp[4];

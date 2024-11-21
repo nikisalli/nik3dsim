@@ -10,7 +10,7 @@ int main() {
     simulator_init(
         &sim,
         gravity,
-        0.00001f,  // 1ms timestep for better stability
+        0.01f,  // 1ms timestep for better stability
         1          // 1 position iteration (no constraints)
     );
     

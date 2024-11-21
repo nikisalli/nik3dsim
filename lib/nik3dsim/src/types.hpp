@@ -28,7 +28,7 @@ namespace nik3dsim {
         niknum invInertia[3];
     } RigidBody;
 
-    typedef struct PositionalConstraint {
+    typedef struct DistanceConstraint {
         size_t b0;
         size_t b1;
         
@@ -36,9 +36,9 @@ namespace nik3dsim {
         niknum r1[3];  // Attachment point in body1's local space
         
         niknum compliance;     // α (inverse stiffness)
-        niknum lambda;         // Lagrange multiplier
+        niknum distance;
         
-    } PositionalConstraint;
+    } DistanceConstraint;
 
     // Simulator struct
     typedef struct {
@@ -49,7 +49,7 @@ namespace nik3dsim {
         RigidBody rigidBodies[100];
         size_t rigidBodyCount;
         
-        PositionalConstraint positionalConstraints[100];
+        DistanceConstraint positionalConstraints[100];
         size_t positionalConstraintCount;
 
         size_t posIters;
