@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include "math.hpp"
 #include <cmath>
 
 namespace nik3dsim {
@@ -271,6 +272,35 @@ void renderer_draw_body(Renderer* renderer, RigidBody body) {
     }
 }
 
+void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstraint* constraint, const RigidBody* bodies) {
+    // Get the two connected bodies
+    const RigidBody* body0 = &bodies[constraint->b0];
+    const RigidBody* body1 = &bodies[constraint->b1];
+    
+    // Transform attachment points from local to world space
+    niknum world_point0[3], world_point1[3];
+    
+    // Transform r0 by body0's rotation and position
+    vec3_quat_rotate(world_point0, body0->rot, constraint->r0);
+    vec3_add(world_point0, world_point0, body0->pos);
+    
+    // Transform r1 by body1's rotation and position
+    vec3_quat_rotate(world_point1, body1->rot, constraint->r1);
+    vec3_add(world_point1, world_point1, body1->pos);
+    
+    // Draw red line between attachment points
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // Red color
+    renderer_draw_wireframe_line(renderer, world_point0, world_point1);
+}
+
+void renderer_draw_constraints(Renderer* renderer, const RigidBodySimulator* sim) {
+    // Draw all distance constraints
+    for (size_t i = 0; i < sim->positionalConstraintCount; i++) {
+        renderer_draw_distance_constraint(renderer, &sim->positionalConstraints[i], sim->rigidBodies);
+    }
+}
+
+// Modify renderer_draw_simulation to include constraint drawing:
 void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim) {
     renderer_clear(renderer);
     
@@ -293,6 +323,9 @@ void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim)
     for (int i = 0; i < sim->rigidBodyCount; i++) {
         renderer_draw_body(renderer, sim->rigidBodies[i]);
     }
+    
+    // Draw all constraints
+    renderer_draw_constraints(renderer, sim);
     
     renderer_present(renderer);
 }

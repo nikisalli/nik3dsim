@@ -14,6 +14,8 @@ int main() {
         0.01f,      // Small timestep for stability
         1          // More iterations for constraint stability
     );
+
+    sim.damping = 0.1f;
     
     // Create first cube
     RigidBody body1;
@@ -48,6 +50,20 @@ int main() {
     body1.invInertia[0] = 0.0f;
     body1.invInertia[1] = 0.0f;
     body1.invInertia[2] = 0.0f;
+
+    // Create third cube
+    RigidBody body3;
+    niknum size3[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
+    niknum pos3[3] = {0, 0, -2};            // Positioned back of origin
+    niknum angles3[3] = {0, 0, 0};            // No initial rotation
+    rigidbody_init(
+        &body3,
+        BODY_BOX,
+        size3,
+        1.0f,   // Same density
+        pos3,
+        angles3
+    );
     
     // Add bodies to simulator
     int body1_idx = sim.rigidBodyCount++;
@@ -55,6 +71,9 @@ int main() {
     
     int body2_idx = sim.rigidBodyCount++;
     sim.rigidBodies[body2_idx] = body2;
+
+    int body3_idx = sim.rigidBodyCount++;
+    sim.rigidBodies[body3_idx] = body3;
     
     // Create positional constraint
     DistanceConstraint pos_constraint;
@@ -64,15 +83,31 @@ int main() {
     niknum local_pos1[3] = {0, 0, 0};  // Left-top-front corner of body2
     
     // Initialize the constraint with some compliance for a slightly soft connection
-    pos_constraint.compliance = 0.01f;
+    pos_constraint.compliance = 0.0f;
     pos_constraint.b0 = body1_idx;
     pos_constraint.b1 = body2_idx;
     vec3_copy(pos_constraint.r0, local_pos0);
     vec3_copy(pos_constraint.r1, local_pos1);
-    pos_constraint.distance = 1.0f;
+    pos_constraint.distance = 2.0f;
+
+    // Create another constraint
+    DistanceConstraint pos_constraint2;
+    
+    // Set attachment points at the facing corners of the cubes
+    niknum local_pos2[3] = {0, 0, 0};   // Right-top-front corner of body1
+    niknum local_pos3[3] = {0.5, 0.5, 0.5};  // Left-top-front corner of body3
+    
+    // Initialize the constraint with some compliance for a slightly soft connection
+    pos_constraint2.compliance = 0.0f;
+    pos_constraint2.b0 = body2_idx;
+    pos_constraint2.b1 = body3_idx;
+    vec3_copy(pos_constraint2.r0, local_pos2);
+    vec3_copy(pos_constraint2.r1, local_pos3);
+    pos_constraint2.distance = 2.0f;
     
     // Add constraint to simulator
     sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint;
+    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint2;
     
     // Initialize renderer
     Renderer renderer;
@@ -83,7 +118,7 @@ int main() {
     
     // Set up camera to view the scene
     Camera camera;
-    niknum cam_pos[3] = {2.0f, 5.0f, 3.0f};
+    niknum cam_pos[3] = {-5.0f, 7.0f, 5.0f};
     niknum cam_target[3] = {0.0f, 0.0f, 0.0f};
     niknum cam_up[3] = {0.0f, 0.0f, 1.0f};
     
@@ -151,7 +186,7 @@ int main() {
         
         renderer_draw_simulation(&renderer, &sim);
         // print_simulation_state(&sim);
-        SDL_Delay(100);
+        SDL_Delay(1);
     }
     
     renderer_cleanup(&renderer);

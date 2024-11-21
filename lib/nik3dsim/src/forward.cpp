@@ -75,9 +75,9 @@ namespace nik3dsim {
         
         // Angular motion in body space
         niknum I_omega[3];
-        I_omega[0] = body->invInertia[0] == 0.0f ? 0.0f : body->omega[0] / body->invInertia[0];
-        I_omega[1] = body->invInertia[1] == 0.0f ? 0.0f : body->omega[1] / body->invInertia[1];
-        I_omega[2] = body->invInertia[2] == 0.0f ? 0.0f : body->omega[2] / body->invInertia[2];
+        I_omega[0] = body->omega[0] * (body->invInertia[0] * (body->invInertia[0] != 0.0f));
+        I_omega[1] = body->omega[1] * (body->invInertia[1] * (body->invInertia[1] != 0.0f));
+        I_omega[2] = body->omega[2] * (body->invInertia[2] * (body->invInertia[2] != 0.0f));
         
         // Compute cross product in body space
         niknum cross_term[3], torque[3] = {0, 0, 0};  // No external torque for now
@@ -97,39 +97,38 @@ namespace nik3dsim {
         niknum omega_len = vec3_length(body->omega);
         niknum omega_dt = omega_len * dt;
         
-        if (omega_dt > 1e-6f) {
-            niknum s = sinf(omega_dt * 0.5f);
-            niknum inv_omega_len = s / omega_len;
-            niknum c = cosf(omega_dt * 0.5f);
-            
-            // Create incremental rotation quaternion
-            niknum dq[4];
-            dq[0] = body->omega[0] * inv_omega_len;  // x
-            dq[1] = body->omega[1] * inv_omega_len;  // y
-            dq[2] = body->omega[2] * inv_omega_len;  // z
-            dq[3] = c;                               // w
-            
-            // Right multiply for body-space update
-            niknum new_rot[4];
-            quat_mul(new_rot, body->rot, dq);
-            
-            // Normalize quaternion
-            quat_normalize(body->rot, new_rot);
-        }
+        niknum s = sinf(omega_dt * 0.5f);
+        niknum mask = omega_len > 1e-6f;
+        niknum inv_omega_len = s * mask / (omega_len + !mask);
+        niknum c = cosf(omega_dt * 0.5f);
+        
+        // Create incremental rotation quaternion
+        niknum dq[4];
+        dq[0] = body->omega[0] * inv_omega_len;  // x
+        dq[1] = body->omega[1] * inv_omega_len;  // y
+        dq[2] = body->omega[2] * inv_omega_len;  // z
+        dq[3] = c;                               // w
+        
+        // Right multiply for body-space update
+        niknum new_rot[4];
+        quat_mul(new_rot, body->rot, dq);
+        
+        // Normalize quaternion
+        quat_normalize(body->rot, new_rot);
     }
 
     // void solve_hinge_gauss_seidel_sor(RigidBody* body0, RigidBody* body1, HingeConstraint* constraint, niknum dt, niknum omega) {
     //     // TODO
     // }
 
-    void local2world(RigidBody* body, niknum res[3], niknum local[3]) {
+    inline void local2world(RigidBody* body, niknum res[3], niknum local[3]) {
         vec3_copy(res, local);
         vec3_quat_rotate(res, body->rot, res);
         vec3_add(res, res, body->pos);
     }
 
     void solve_positional_constraint(RigidBody* b0, RigidBody* b1, DistanceConstraint* constraint, niknum dt) {
-        niknum worldpos0[3], worldpos1[3];
+        niknum worldpos0[3], worldpos1[3], a0[3], a1[3], tmp[4];
 
         local2world(b0, worldpos0, constraint->r0);
         local2world(b1, worldpos1, constraint->r1);
@@ -138,15 +137,13 @@ namespace nik3dsim {
         vec3_sub(n, worldpos1, worldpos0);
         niknum c = vec3_normalize(n, n) - constraint->distance;
         
-        niknum a0[3], a1[3], tmp[4], invrot0[4], invrot1[4];
+        // Compute inverse masses
         vec3_sub(a0, worldpos0, b0->pos);
         vec3_cross(tmp, a0, n);
-        quat_conj(invrot0, b0->rot);
-        vec3_quat_rotate(a0, invrot0, tmp);
+        vec3_quat_rotate(a0, b0->invRot, tmp);
         vec3_sub(a1, worldpos1, b1->pos);
         vec3_cross(tmp, a1, n);
-        quat_conj(invrot1, b1->rot);
-        vec3_quat_rotate(a1, invrot1, tmp);
+        vec3_quat_rotate(a1, b1->invRot, tmp);
 
         niknum w = a0[0] * a0[0] * b0->invInertia[0] + 
                    a0[1] * a0[1] * b0->invInertia[1] +
@@ -157,33 +154,40 @@ namespace nik3dsim {
         
         niknum alpha = constraint->compliance / dt / dt;
         niknum lambda = -c / (w + alpha);
-        vec3_scl(n, n, -lambda);
 
+        // Update body0
+        vec3_scl(n, n, -lambda);
         niknum dom[3], drot[4];
+        // Update position
         vec3_addscl(b0->pos, b0->pos, n, b0->invMass);
+        // Compute angular velocity
         vec3_copy(dom, n);
         vec3_sub(dom, worldpos0, b0->pos);
         vec3_cross(tmp, dom, n);
-        vec3_quat_rotate(dom, invrot0, tmp);
+        vec3_quat_rotate(dom, b0->invRot, tmp);
         vec3_mul(dom, dom, b0->invInertia);
         vec3_quat_rotate(dom, b0->rot, dom);
         vec4_zero(drot);
         vec3_copy(drot, dom);
+        // Update rotation
         quat_mul(tmp, drot, b0->rot);
         vec4_addscl(b0->rot, b0->rot, tmp, 0.5f);
         quat_normalize(b0->rot, b0->rot);
 
+        // Update body1
+        // Update position
         vec3_scl(n, n, -1.0f);
-
+        // Compute angular velocity
         vec3_addscl(b1->pos, b1->pos, n, b1->invMass);
         vec3_copy(dom, n);
         vec3_sub(dom, worldpos1, b1->pos);
         vec3_cross(tmp, dom, n);
-        vec3_quat_rotate(dom, invrot1, tmp);
+        vec3_quat_rotate(dom, b1->invRot, tmp);
         vec3_mul(dom, dom, b1->invInertia);
         vec3_quat_rotate(dom, b1->rot, dom);
         vec4_zero(drot);
         vec3_copy(drot, dom);
+        // Update rotation
         quat_mul(tmp, drot, b1->rot);
         vec4_addscl(b1->rot, b1->rot, tmp, 0.5f);
         quat_normalize(b1->rot, b1->rot);
@@ -231,14 +235,12 @@ namespace nik3dsim {
             niknum axis[3] = {tmp[0], tmp[1], tmp[2]};
             niknum angle = vec3_normalize(axis, axis);
             niknum speed = 2 * atan2(angle, tmp[3]);
-            if (speed > nikpi) {
-                speed -= 2 * nikpi;
-            }
+            speed -= (speed > nikpi) * 2 * nikpi;
             vec3_scl(body->omega, axis, speed / sim->dt);
 
             // Apply damping
-            // vec3_scl(body->vel, body->vel, fmaxf(1.0f - sim->damping * sim->dt, 0.0f));
-            // vec3_scl(body->omega, body->omega, fmaxf(1.0f - sim->damping * sim->dt, 0.0f));
+            vec3_scl(body->vel, body->vel, fmaxf(1.0f - sim->damping * sim->dt, 0.0f));
+            vec3_scl(body->omega, body->omega, fmaxf(1.0f - sim->damping * sim->dt, 0.0f));
         }
     }
 
