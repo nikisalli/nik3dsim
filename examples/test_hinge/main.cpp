@@ -48,7 +48,7 @@ int main() {
     // Create third cube
     RigidBody body3;
     niknum size3[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
-    niknum pos3[3] = {0, 5.8, 0};            // Positioned right of origin
+    niknum pos3[3] = {0, 6, 0};            // Positioned right of origin
     niknum angles3[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
         &body3,
@@ -84,7 +84,7 @@ int main() {
     pos_constraint.r0[1] = 0.0f;
     pos_constraint.r0[2] = 0.0f;
     pos_constraint.r1[0] = 0.0f;
-    pos_constraint.r1[1] = 2.0f;
+    pos_constraint.r1[1] = -2.0f;
     pos_constraint.r1[2] = 0.0f;
     pos_constraint.distance = 0.0f;
     sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint;
@@ -99,7 +99,7 @@ int main() {
     hinge_constraint.a1[0] = 1.0f;
     hinge_constraint.a1[1] = 0.0f;
     hinge_constraint.a1[2] = 0.0f;
-    hinge_constraint.compliance = 0.0001f;
+    hinge_constraint.compliance = 0.000000001f;
     sim.hingeConstraints[sim.hingeConstraintCount++] = hinge_constraint;
 
     // Create positional constraint
@@ -108,10 +108,10 @@ int main() {
     pos_constraint2.b0 = body2_idx;
     pos_constraint2.b1 = body3_idx;
     pos_constraint2.r0[0] = 0.0f;
-    pos_constraint2.r0[1] = -1.9f;
+    pos_constraint2.r0[1] = 2.0f;
     pos_constraint2.r0[2] = 0.0f;
     pos_constraint2.r1[0] = 0.0f;
-    pos_constraint2.r1[1] = 1.9f;
+    pos_constraint2.r1[1] = -2.0f;
     pos_constraint2.r1[2] = 0.0f;
     pos_constraint2.distance = 0.0f;
     sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint2;

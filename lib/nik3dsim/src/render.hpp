@@ -53,7 +53,7 @@ void renderer_set_camera(Renderer* renderer, Camera camera);
 SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]);
 
 // Drawing primitives
-void renderer_draw_wireframe_line(Renderer* renderer, niknum start[3], niknum end[3]);
+void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], const niknum end[3]);
 void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]);
 void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius);
 

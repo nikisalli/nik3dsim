@@ -136,7 +136,7 @@ void renderer_set_camera(Renderer* renderer, Camera camera) {
     renderer->projectionMatrix[15] = 0.0f;
 }
 
-SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]) {
+SDL_Point renderer_world_to_screen(Renderer* renderer, const niknum point[3]) {
     // View transformation
     niknum viewSpace[4];
     viewSpace[0] = renderer->viewMatrix[0] * point[0] + renderer->viewMatrix[4] * point[1] + 
@@ -172,7 +172,7 @@ SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]) {
     return screen;
 }
 
-void renderer_draw_wireframe_line(Renderer* renderer, niknum start[3], niknum end[3]) {
+void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], const niknum end[3]) {
     SDL_Point p1 = renderer_world_to_screen(renderer, start);
     SDL_Point p2 = renderer_world_to_screen(renderer, end);
     SDL_RenderDrawLine(renderer->sdl_renderer, p1.x, p1.y, p2.x, p2.y);
@@ -368,10 +368,35 @@ void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstra
     renderer_draw_wireframe_line(renderer, world_point0, world_point1);
 }
 
+void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* constraint, const RigidBody* bodies) {
+    // Get the two connected bodies
+    const RigidBody* body0 = &bodies[constraint->b0];
+    const RigidBody* body1 = &bodies[constraint->b1];
+    
+    // Transform axis by body rotations
+    niknum a0[3], a1[3];
+    vec3_quat_rotate(a0, body0->rot, constraint->a0);
+    vec3_quat_rotate(a1, body1->rot, constraint->a1);
+    vec3_normalize(a0, a0);
+    vec3_normalize(a1, a1);
+    vec3_addto(a0, body0->pos);
+    vec3_addto(a1, body1->pos);
+    
+    // Draw green line between axis and body positions
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Blue color
+    renderer_draw_wireframe_line(renderer, body0->pos, a0);
+    renderer_draw_wireframe_line(renderer, body1->pos, a1);
+}
+
 void renderer_draw_constraints(Renderer* renderer, const RigidBodySimulator* sim) {
     // Draw all distance constraints
     for (size_t i = 0; i < sim->positionalConstraintCount; i++) {
         renderer_draw_distance_constraint(renderer, &sim->positionalConstraints[i], sim->rigidBodies);
+    }
+    
+    // Draw all hinge constraints
+    for (size_t i = 0; i < sim->hingeConstraintCount; i++) {
+        renderer_draw_hinge_constraint(renderer, &sim->hingeConstraints[i], sim->rigidBodies);
     }
 }
 
