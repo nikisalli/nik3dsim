@@ -117,10 +117,6 @@ namespace nik3dsim {
         quat_normalize(body->rot, new_rot);
     }
 
-    // void solve_hinge_gauss_seidel_sor(RigidBody* body0, RigidBody* body1, HingeConstraint* constraint, niknum dt, niknum omega) {
-    //     // TODO
-    // }
-
     inline void local2world(RigidBody* body, niknum res[3], niknum local[3]) {
         vec3_copy(res, local);
         vec3_quat_rotate(res, body->rot, res);
@@ -193,15 +189,67 @@ namespace nik3dsim {
         quat_normalize(b1->rot, b1->rot);
     }
 
+    void solve_hinge_constraint(RigidBody* b0, RigidBody* b1, HingeConstraint* constraint, niknum dt) {
+        // Compute rotation axis
+        niknum n[3], a0[3], a1[3], tmp[4];
+        vec3_quat_rotate(a0, b0->rot, constraint->a0);
+        vec3_quat_rotate(a1, b1->rot, constraint->a1);
+        vec3_cross(n, a0, a1);
+        niknum c = vec3_normalize(n, n);
+
+
+        // Compute generalized inverse masses (angular part only for hinge)
+        niknum w = n[0] * n[0] * b0->invInertia[0] +
+                   n[1] * n[1] * b0->invInertia[1] + 
+                   n[2] * n[2] * b0->invInertia[2] +
+                   n[0] * n[0] * b1->invInertia[0] +
+                   n[1] * n[1] * b1->invInertia[1] + 
+                   n[2] * n[2] * b1->invInertia[2];
+        
+        // Compute correction magnitude (without lambda accumulation)
+        niknum alpha = constraint->compliance / (dt * dt);
+        niknum lambda = -c / (w + alpha);
+
+        // Compute angular impulse (like positional impulse p in position solver)
+        niknum ang_impulse[3];
+        vec3_scl(ang_impulse, n, lambda);
+
+        // For body 0
+        niknum dom0[3], drot0[4];
+        // Apply inverse inertia to get angular velocity change (like I⁻¹(r × p))
+        dom0[0] = -ang_impulse[0] * b0->invInertia[0];
+        dom0[1] = -ang_impulse[1] * b0->invInertia[1];
+        dom0[2] = -ang_impulse[2] * b0->invInertia[2];
+        // Create quaternion from angular velocity (like [I⁻¹(r × p), 0])
+        vec4_zero(drot0);
+        vec3_copy(drot0, dom0);
+        // Update rotation (like q1 += 0.5 * [I⁻¹(r × p), 0] * q1)
+        quat_mul(tmp, drot0, b0->rot);
+        vec4_addscl(b0->rot, b0->rot, tmp, 0.5f);
+        quat_normalize(b0->rot, b0->rot);
+
+        // For body 1 (negative correction)
+        niknum dom1[3], drot1[4];
+        dom1[0] = ang_impulse[0] * b1->invInertia[0];
+        dom1[1] = ang_impulse[1] * b1->invInertia[1];
+        dom1[2] = ang_impulse[2] * b1->invInertia[2];
+        vec4_zero(drot1);
+        vec3_copy(drot1, dom1);
+        quat_mul(tmp, drot1, b1->rot);
+        vec4_addscl(b1->rot, b1->rot, tmp, 0.5f);
+        quat_normalize(b1->rot, b1->rot);
+    }
+
     void simulator_init(RigidBodySimulator* sim, niknum gravity[3], niknum timeStepSize, int numPosIters) {
         vec3_copy(sim->gravity, gravity);
         sim->dt = timeStepSize;
         sim->posIters = numPosIters;
         sim->rigidBodyCount = 0;
         sim->positionalConstraintCount = 0;
+        sim->hingeConstraintCount = 0;
     }
 
-    void simulator_simulate(RigidBodySimulator* sim) {        
+    void simulator_simulate(RigidBodySimulator* sim) {     
         // TODO: Implement CollectCollisionPairs()
         
         // Integrate bodies
@@ -216,6 +264,13 @@ namespace nik3dsim {
                 RigidBody* b0 = &sim->rigidBodies[constraint->b0];
                 RigidBody* b1 = &sim->rigidBodies[constraint->b1];
                 solve_positional_constraint(b0, b1, constraint, sim->dt);
+            }
+
+            for (int i = 0; i < sim->hingeConstraintCount; i++) {
+                HingeConstraint* constraint = &sim->hingeConstraints[i];
+                RigidBody* b0 = &sim->rigidBodies[constraint->b0];
+                RigidBody* b1 = &sim->rigidBodies[constraint->b1];
+                solve_hinge_constraint(b0, b1, constraint, sim->dt);
             }
         }
         

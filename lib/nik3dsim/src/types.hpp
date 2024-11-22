@@ -45,14 +45,11 @@ namespace nik3dsim {
         size_t b0;
         size_t b1;
         
-        niknum r0[3];  // Attachment point in body0's local space
-        niknum r1[3];  // Attachment point in body1's local space
         niknum a0[3];  // Axis in body0's local space
         niknum a1[3];  // Axis in body1's local space
         
         niknum compliance;     // α (inverse stiffness)
-        niknum distance;
-        
+
     } HingeConstraint;
 
     // Simulator struct

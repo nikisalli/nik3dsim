@@ -9,7 +9,6 @@ namespace nik3dsim {
 
     // Simulator operations
     void simulator_init(RigidBodySimulator* sim, niknum gravity[3], niknum timeStepSize, int numPosIters);
-    void simulator_add_body(RigidBodySimulator* sim, RigidBody* body);
     void simulator_simulate(RigidBodySimulator* sim);
     void simulator_destroy(RigidBodySimulator* sim);
 

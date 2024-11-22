@@ -261,6 +261,81 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
     }
 }
 
+void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState) {
+    static const float ROTATION_SPEED = 0.3f;    // Degrees per pixel
+    static const float ZOOM_SPEED = 0.1f;
+    
+    switch (event.type) {
+        case SDL_MOUSEBUTTONDOWN: {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                mouseState.leftButtonDown = true;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT) {
+                mouseState.rightButtonDown = true;
+            }
+            mouseState.lastX = event.button.x;
+            mouseState.lastY = event.button.y;
+            break;
+        }
+        
+        case SDL_MOUSEBUTTONUP: {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                mouseState.leftButtonDown = false;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT) {
+                mouseState.rightButtonDown = false;
+            }
+            break;
+        }
+        
+        case SDL_MOUSEWHEEL: {
+            mouseState.dist -= event.wheel.y * ZOOM_SPEED;
+            mouseState.dist = fmax(0.1f, mouseState.dist); // Prevent negative or zero distance
+            
+            // Update camera position immediately after distance change
+            double camxoffset = mouseState.dist * sin(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+            double camyoffset = mouseState.dist * cos(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+            double camzoffset = mouseState.dist * sin(mouseState.elev * M_PI / 180.0);
+            
+            camera.position[0] = camera.target[0] + camxoffset;
+            camera.position[1] = camera.target[1] + camyoffset;
+            camera.position[2] = camera.target[2] + camzoffset;
+            break;
+        }
+        
+        case SDL_MOUSEMOTION: {
+            int deltaX = event.motion.x - mouseState.lastX;
+            int deltaY = event.motion.y - mouseState.lastY;
+            
+            if (mouseState.leftButtonDown) {
+                // Update azimuth and elevation angles
+                mouseState.azim += deltaX * ROTATION_SPEED;
+                mouseState.elev += deltaY * ROTATION_SPEED;
+                
+                // Clamp elevation to prevent gimbal lock
+                mouseState.elev = fmax(-89.0f, fmin(89.0f, mouseState.elev));
+                
+                // Keep azimuth in [0, 360) range
+                while (mouseState.azim >= 360.0f) mouseState.azim -= 360.0f;
+                while (mouseState.azim < 0.0f) mouseState.azim += 360.0f;
+            }
+            
+            // Update camera position based on spherical coordinates
+            double camxoffset = mouseState.dist * sin(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+            double camyoffset = mouseState.dist * cos(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+            double camzoffset = mouseState.dist * sin(mouseState.elev * M_PI / 180.0);
+            
+            camera.position[0] = camera.target[0] + camxoffset;
+            camera.position[1] = camera.target[1] + camyoffset;
+            camera.position[2] = camera.target[2] + camzoffset;
+            
+            mouseState.lastX = event.motion.x;
+            mouseState.lastY = event.motion.y;
+            break;
+        }
+    }
+}
+
 void renderer_draw_body(Renderer* renderer, RigidBody body) {
     switch (body.type) {
         case BODY_BOX:
@@ -302,8 +377,6 @@ void renderer_draw_constraints(Renderer* renderer, const RigidBodySimulator* sim
 
 // Modify renderer_draw_simulation to include constraint drawing:
 void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim) {
-    renderer_clear(renderer);
-    
     // Draw coordinate axes
     niknum origin[3] = {0, 0, 0};
     niknum x_axis[3] = {1, 0, 0};
@@ -328,6 +401,8 @@ void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim)
     renderer_draw_constraints(renderer, sim);
     
     renderer_present(renderer);
+
+    renderer_clear(renderer);
 }
 
 void renderer_resize(Renderer* renderer, int width, int height) {

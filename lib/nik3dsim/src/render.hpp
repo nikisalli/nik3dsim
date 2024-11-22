@@ -16,6 +16,16 @@ struct Camera {
     float farPlane;
 };
 
+struct MouseState {
+    int lastX;
+    int lastY;
+    bool leftButtonDown;
+    bool rightButtonDown;
+    float dist;       // Distance from camera to target
+    float azim;       // Azimuth angle in degrees
+    float elev;       // Elevation angle in degrees
+};
+
 struct Renderer {
     SDL_Window* window;
     SDL_Renderer* sdl_renderer;
@@ -25,6 +35,8 @@ struct Renderer {
     float viewMatrix[16];
     float projectionMatrix[16];
 };
+
+void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState);
 
 // Initialization and cleanup
 bool renderer_init(Renderer* renderer, int width, int height);
