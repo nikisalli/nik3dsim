@@ -134,6 +134,17 @@ int main() {
     camera.farPlane = 100.0f;
     renderer_set_camera(&renderer, camera);
     
+    // Initialize mouse state
+    MouseState mouseState = {
+        0,      // lastX
+        0,      // lastY
+        false,  // leftButtonDown
+        false,  // rightButtonDown
+        10.0f,  // dist
+        45.0f,  // azim
+        30.0f   // elev
+    };
+    
     // Main loop
     bool running = true;
     SDL_Event event;
@@ -164,11 +175,18 @@ int main() {
                         renderer_resize(&renderer, event.window.data1, event.window.data2);
                     }
                     break;
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                case SDL_MOUSEWHEEL:
+                    handle_mouse_events(event, renderer.camera, mouseState);
+                    renderer_set_camera(&renderer, renderer.camera);
+                    break;
             }
         }
         
         Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        float deltaTime = (currentTime - lastTime) / 100.0f;
         lastTime = currentTime;
         static float accumulator = 0.0f;
         accumulator += deltaTime;
@@ -176,16 +194,8 @@ int main() {
             simulator_simulate(&sim);
             accumulator -= sim.dt;
         }
-
-        // Uint32 currentTime = SDL_GetTicks();
-        // for (int i = 0; i < 1e6; i++) {
-        //     simulator_simulate(&sim);
-        // }
-        // Uint32 endTime = SDL_GetTicks();
-        // printf("steps/s: %f\n", 1e9f / (endTime - currentTime));
         
         renderer_draw_simulation(&renderer, &sim);
-        // print_simulation_state(&sim);
         SDL_Delay(1);
     }
     

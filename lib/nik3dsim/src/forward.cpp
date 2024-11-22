@@ -75,9 +75,9 @@ namespace nik3dsim {
         
         // Angular motion in body space
         niknum I_omega[3];
-        I_omega[0] = body->omega[0] * (body->invInertia[0] * (body->invInertia[0] != 0.0f));
-        I_omega[1] = body->omega[1] * (body->invInertia[1] * (body->invInertia[1] != 0.0f));
-        I_omega[2] = body->omega[2] * (body->invInertia[2] * (body->invInertia[2] != 0.0f));
+        I_omega[0] = (body->omega[0] / (body->invInertia[0] + (body->invInertia[0] == 0.0f))) * (body->invInertia[0] != 0.0f);
+        I_omega[1] = (body->omega[1] / (body->invInertia[1] + (body->invInertia[1] == 0.0f))) * (body->invInertia[1] != 0.0f);
+        I_omega[2] = (body->omega[2] / (body->invInertia[2] + (body->invInertia[2] == 0.0f))) * (body->invInertia[2] != 0.0f); 
         
         // Compute cross product in body space
         niknum cross_term[3], torque[3] = {0, 0, 0};  // No external torque for now

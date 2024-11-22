@@ -1,36 +1,34 @@
 #include "nik3dsim.h"
 #include <SDL2/SDL.h>
-
 using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and substeps for stability
     RigidBodySimulator sim;
-    niknum gravity[3] = {0, 0, -9.81};  // No gravity for pure rotation demo
+    niknum gravity[3] = {0, 0, -9.81}; // No gravity for pure rotation demo
     simulator_init(
         &sim,
         gravity,
-        0.01f,  // 1ms timestep for better stability
-        1          // 1 position iteration (no constraints)
+        0.01f, // 1ms timestep for better stability
+        1 // 1 position iteration (no constraints)
     );
     
     // Create a body with distinct principal moments of inertia
     RigidBody body;
     // Initialize with dummy size - we'll override the inertia
-    niknum size[3] = {1.0f, 0.5f, 0.1f};  // Size doesn't matter as we'll override inertia
-    niknum pos[3] = {0, 0, 0};            // At origin
-    niknum angles[3] = {0, 0, 0};         // No initial rotation
-    
+    niknum size[3] = {1.0f, 0.5f, 0.1f}; // Size doesn't matter as we'll override inertia
+    niknum pos[3] = {0, 0, 0}; // At origin
+    niknum angles[3] = {0, 0, 0}; // No initial rotation
     rigidbody_init(
         &body,
         BODY_BOX,
         size,
-        1.0f,  // Density of 1 for simplicity
+        1.0f, // Density of 1 for simplicity
         pos,
         angles
     );
     
-    printf("body inertia: %.2f, %.2f, %.2f\n", 
+    printf("body inertia: %.2f, %.2f, %.2f\n",
            body.invInertia[0], body.invInertia[1], body.invInertia[2]);
     printf("body mass: %.2f\n", body.invMass);
     
@@ -38,7 +36,6 @@ int main() {
     // with small perturbations on other axes to trigger the instability
     niknum init_omega[3] = {0.0f, 10.0f, 0.01f};
     niknum init_vel[3] = {0.0f, 0.0f, 6.0f};
-    
     for(int i = 0; i < 3; i++) {
         body.omega[i] = init_omega[i];
         body.vel[i] = init_vel[i];
@@ -59,18 +56,27 @@ int main() {
     niknum cam_pos[3] = {3.0f, 3.0f, 3.0f};
     niknum cam_target[3] = {0.0f, 0.0f, 0.0f};
     niknum cam_up[3] = {0.0f, 0.0f, 1.0f};
-    
     for(int i = 0; i < 3; i++) {
         camera.position[i] = cam_pos[i];
         camera.target[i] = cam_target[i];
         camera.up[i] = cam_up[i];
     }
-    
     camera.fov = 60.0f;
     camera.aspectRatio = 800.0f / 600.0f;
     camera.nearPlane = 0.1f;
     camera.farPlane = 100.0f;
     renderer_set_camera(&renderer, camera);
+    
+    // Initialize mouse state
+    MouseState mouseState = {
+        0,      // lastX
+        0,      // lastY
+        false,  // leftButtonDown
+        false,  // rightButtonDown
+        10.0f,  // dist
+        45.0f,  // azim
+        30.0f   // elev
+    };
     
     // Main loop
     bool running = true;
@@ -93,16 +99,21 @@ int main() {
                         renderer_resize(&renderer, event.window.data1, event.window.data2);
                     }
                     break;
+                case SDL_MOUSEBUTTONDOWN:
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEMOTION:
+                case SDL_MOUSEWHEEL:
+                    handle_mouse_events(event, renderer.camera, mouseState);
+                    renderer_set_camera(&renderer, renderer.camera);
+                    break;
             }
         }
         
         Uint32 currentTime = SDL_GetTicks();
         float deltaTime = (currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
-        
         static float accumulator = 0.0f;
         accumulator += deltaTime;
-        
         while (accumulator >= sim.dt) {
             simulator_simulate(&sim);
             accumulator -= sim.dt;
