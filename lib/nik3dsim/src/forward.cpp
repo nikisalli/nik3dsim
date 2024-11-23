@@ -117,17 +117,15 @@ namespace nik3dsim {
         quat_normalize(body->rot, new_rot);
     }
 
-    inline void local2world(RigidBody* body, niknum res[3], niknum local[3]) {
-        vec3_copy(res, local);
-        vec3_quat_rotate(res, body->rot, res);
-        vec3_add(res, res, body->pos);
-    }
-
     void solve_positional_constraint(RigidBody* b0, RigidBody* b1, DistanceConstraint* constraint, niknum dt) {
         niknum worldpos0[3], worldpos1[3], a0[3], a1[3], tmp[4];
 
-        local2world(b0, worldpos0, constraint->r0);
-        local2world(b1, worldpos1, constraint->r1);
+        vec3_copy(worldpos0, constraint->r0);
+        vec3_quat_rotate(worldpos0, b0->rot, worldpos0);
+        vec3_add(worldpos0, worldpos0, b0->pos);
+        vec3_copy(worldpos1, constraint->r1);
+        vec3_quat_rotate(worldpos1, b1->rot, worldpos1);
+        vec3_add(worldpos1, worldpos1, b1->pos);
 
         niknum n[3];
         vec3_sub(n, worldpos1, worldpos0);

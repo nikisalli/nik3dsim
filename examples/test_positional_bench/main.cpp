@@ -14,6 +14,8 @@ int main() {
         0.01f,      // Small timestep for stability
         1          // More iterations for constraint stability
     );
+
+    sim.damping = 0.0f;
     
     // Create first cube
     RigidBody body1;
@@ -31,8 +33,8 @@ int main() {
     
     // Create second cube
     RigidBody body2;
-    niknum size2[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
-    niknum pos2[3] = {0, 0, -1};            // Positioned right of origin
+    niknum size2[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
+    niknum pos2[3] = {0, 2, 0};            // Positioned right of origin
     niknum angles2[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
         &body2,
@@ -41,6 +43,20 @@ int main() {
         1.0f,   // Same density
         pos2,
         angles2
+    );
+
+    // Create third cube
+    RigidBody body3;
+    niknum size3[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
+    niknum pos3[3] = {0, 6, 0};            // Positioned right of origin
+    niknum angles3[3] = {0, 0, 0};            // No initial rotation
+    rigidbody_init(
+        &body3,
+        BODY_BOX,
+        size3,
+        1.0f,   // Same density
+        pos3,
+        angles3
     );
     
     // Fix first body in place
@@ -55,26 +71,63 @@ int main() {
     
     int body2_idx = sim.rigidBodyCount++;
     sim.rigidBodies[body2_idx] = body2;
+
+    int body3_idx = sim.rigidBodyCount++;
+    sim.rigidBodies[body3_idx] = body3;
     
     // Create positional constraint
     DistanceConstraint pos_constraint;
-    
-    // Set attachment points at the facing corners of the cubes
-    niknum local_pos0[3] = {0, 0, 0};   // Right-top-front corner of body1
-    niknum local_pos1[3] = {0.5, 0.5, 0.5};  // Left-top-front corner of body2
-    
-    // Initialize the constraint with some compliance for a slightly soft connection
     pos_constraint.compliance = 0.0f;
     pos_constraint.b0 = body1_idx;
     pos_constraint.b1 = body2_idx;
-    vec3_copy(pos_constraint.r0, local_pos0);
-    vec3_copy(pos_constraint.r1, local_pos1);
-    pos_constraint.distance = 1.0f;
-    
-    // Add constraint to simulator
+    pos_constraint.r0[0] = 0.0f;
+    pos_constraint.r0[1] = 0.0f;
+    pos_constraint.r0[2] = 0.0f;
+    pos_constraint.r1[0] = 0.0f;
+    pos_constraint.r1[1] = -2.0f;
+    pos_constraint.r1[2] = 0.0f;
+    pos_constraint.distance = 0.0f;
     sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint;
-    
-    // Set up camera to view the scene
+
+    // Create hinge constraint
+    HingeConstraint hinge_constraint;
+    hinge_constraint.b0 = body1_idx;
+    hinge_constraint.b1 = body2_idx;
+    hinge_constraint.a0[0] = 1.0f;
+    hinge_constraint.a0[1] = 0.0f;
+    hinge_constraint.a0[2] = 0.0f;
+    hinge_constraint.a1[0] = 1.0f;
+    hinge_constraint.a1[1] = 0.0f;
+    hinge_constraint.a1[2] = 0.0f;
+    hinge_constraint.compliance = 0.000000001f;
+    sim.hingeConstraints[sim.hingeConstraintCount++] = hinge_constraint;
+
+    // Create positional constraint
+    DistanceConstraint pos_constraint2;
+    pos_constraint2.compliance = 0.0f;
+    pos_constraint2.b0 = body2_idx;
+    pos_constraint2.b1 = body3_idx;
+    pos_constraint2.r0[0] = 0.0f;
+    pos_constraint2.r0[1] = 2.0f;
+    pos_constraint2.r0[2] = 0.0f;
+    pos_constraint2.r1[0] = 0.0f;
+    pos_constraint2.r1[1] = -2.0f;
+    pos_constraint2.r1[2] = 0.0f;
+    pos_constraint2.distance = 0.0f;
+    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint2;
+
+    // Create hinge constraint
+    HingeConstraint hinge_constraint2;
+    hinge_constraint2.b0 = body2_idx;
+    hinge_constraint2.b1 = body3_idx;
+    hinge_constraint2.a0[0] = 1.0f;
+    hinge_constraint2.a0[1] = 0.0f;
+    hinge_constraint2.a0[2] = 0.0f;
+    hinge_constraint2.a1[0] = 1.0f;
+    hinge_constraint2.a1[1] = 0.0f;
+    hinge_constraint2.a1[2] = 0.0f;
+    hinge_constraint2.compliance = 0.000000001f;
+    sim.hingeConstraints[sim.hingeConstraintCount++] = hinge_constraint2;
     
     // Main loop
     auto start = std::chrono::high_resolution_clock::now();

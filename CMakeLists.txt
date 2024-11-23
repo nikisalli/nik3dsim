@@ -3,6 +3,8 @@ project(nik3dsim)
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/nik3dsim/include)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
 add_subdirectory(lib/nik3dsim)
 add_subdirectory(examples/test)
 add_subdirectory(examples/test_hinge)

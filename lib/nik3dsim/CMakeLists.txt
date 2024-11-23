@@ -7,7 +7,7 @@ option(NIK3DSIM_WITH_SDL2 "Build with SDL2 support" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -mavx -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -mavx -fPIC -gdwarf-4")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --save-temps")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
