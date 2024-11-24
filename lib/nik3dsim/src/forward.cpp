@@ -47,10 +47,14 @@ namespace nik3dsim {
                 case BODY_SPHERE:
                     mass = 4.0f/3.0f * M_PI * size[0] * size[0] * size[0] * density;
                     body->invMass = 1.0f / mass;
-                    niknum I = 2.0f/5.0f * mass * size[0] * size[0];
-                    body->invInertia[0] = 1.0f / I;
-                    body->invInertia[1] = 1.0f / I;
-                    body->invInertia[2] = 1.0f / I;
+                    Ix = 2.0f/5.0f * mass * size[0] * size[0];
+                    body->invInertia[0] = 1.0f / Ix;
+                    body->invInertia[1] = 1.0f / Ix;
+                    body->invInertia[2] = 1.0f / Ix;
+                    break;
+                default:
+                    printf("Unknown body type: %d\n", type);
+                    exit(1);
                     break;
             }
         } else {

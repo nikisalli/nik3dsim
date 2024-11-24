@@ -263,7 +263,7 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
 
 void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState) {
     static const float ROTATION_SPEED = 0.3f;    // Degrees per pixel
-    static const float ZOOM_SPEED = 0.1f;
+    static const float ZOOM_SPEED = 1.0f;
     
     switch (event.type) {
         case SDL_MOUSEBUTTONDOWN: {
@@ -343,6 +343,8 @@ void renderer_draw_body(Renderer* renderer, RigidBody body) {
             break;
         case BODY_SPHERE:
             renderer_draw_wireframe_sphere(renderer, body.pos, body.size[0]);
+            break;
+        default:
             break;
     }
 }
