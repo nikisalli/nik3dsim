@@ -6,24 +6,27 @@ using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and iterations
-    RigidBodySimulator sim;
+    nikModel m;
+    nikData d;
     niknum gravity[3] = {0, 0, -10};
     simulator_init(
-        &sim,
+        &m,
         gravity,
         0.01f,      // Small timestep for stability
         1          // More iterations for constraint stability
     );
 
-    sim.damping = 0.1f;
+    m.damping = 0.1f;
     
     // Create first cube
-    RigidBody body1;
+    RigidBodyModel body1model;
+    RigidBodyData body1data;
     niknum size1[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
     niknum pos1[3] = {0, 0, 0};           // Positioned left of origin
     niknum angles1[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body1,
+        &body1model,
+        &body1data,
         BODY_BOX,
         size1,  
         1.0f,   // Density
@@ -32,12 +35,14 @@ int main() {
     );
     
     // Create second cube
-    RigidBody body2;
+    RigidBodyModel body2model;
+    RigidBodyData body2data;
     niknum size2[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
     niknum pos2[3] = {0, 0, -1};            // Positioned right of origin
     niknum angles2[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body2,
+        &body2model,
+        &body2data,
         BODY_BOX,
         size2,
         1.0f,   // Same density
@@ -46,18 +51,20 @@ int main() {
     );
     
     // Fix first body in place
-    body1.invMass = 0.0f;
-    body1.invInertia[0] = 0.0f;
-    body1.invInertia[1] = 0.0f;
-    body1.invInertia[2] = 0.0f;
+    body1model.invMass = 0.0f;
+    body1model.invInertia[0] = 0.0f;
+    body1model.invInertia[1] = 0.0f;
+    body1model.invInertia[2] = 0.0f;
 
     // Create third cube
-    RigidBody body3;
+    RigidBodyModel body3model;
+    RigidBodyData body3data;
     niknum size3[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
     niknum pos3[3] = {0, 0, -2};            // Positioned back of origin
     niknum angles3[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body3,
+        &body3model,
+        &body3data,
         BODY_BOX,
         size3,
         1.0f,   // Same density
@@ -66,14 +73,17 @@ int main() {
     );
     
     // Add bodies to simulator
-    int body1_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body1_idx] = body1;
+    int body1_idx = m.rigidBodyCount++;
+    m.rigidBodies[body1_idx] = body1model;
+    d.rigidBodies[body1_idx] = body1data;
     
-    int body2_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body2_idx] = body2;
+    int body2_idx = m.rigidBodyCount++;
+    m.rigidBodies[body2_idx] = body2model;
+    d.rigidBodies[body2_idx] = body2data;
 
-    int body3_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body3_idx] = body3;
+    int body3_idx = m.rigidBodyCount++;
+    m.rigidBodies[body3_idx] = body3model;
+    d.rigidBodies[body3_idx] = body3data;
     
     // Create positional constraint
     DistanceConstraint pos_constraint;
@@ -106,8 +116,8 @@ int main() {
     pos_constraint2.distance = 2.0f;
     
     // Add constraint to simulator
-    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint;
-    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint2;
+    m.positionalConstraints[m.positionalConstraintCount++] = pos_constraint;
+    m.positionalConstraints[m.positionalConstraintCount++] = pos_constraint2;
     
     // Initialize renderer
     Renderer renderer;
@@ -166,7 +176,7 @@ int main() {
                     if (event.key.keysym.sym == SDLK_SPACE) {
                         niknum impulse[3] = {0.0f, 2.0f, 1.0f};  // Push up and forward
                         for(int i = 0; i < 3; i++) {
-                            sim.rigidBodies[body2_idx].vel[i] = impulse[i];
+                            d.rigidBodies[body2_idx].vel[i] = impulse[i];
                         }
                     }
                     break;
@@ -190,12 +200,12 @@ int main() {
         lastTime = currentTime;
         static float accumulator = 0.0f;
         accumulator += deltaTime;
-        while (accumulator >= sim.dt) {
-            simulator_simulate(&sim);
-            accumulator -= sim.dt;
+        while (accumulator >= m.dt) {
+            simulator_simulate(&m, &d);
+            accumulator -= m.dt;
         }
         
-        renderer_draw_simulation(&renderer, &sim);
+        renderer_draw_simulation(&renderer, &m, &d);
         SDL_Delay(1);
     }
     

@@ -4,23 +4,26 @@ using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and substeps for stability
-    RigidBodySimulator sim;
+    nikModel m;
+    nikData d;
     niknum gravity[3] = {0, 0, -9.81}; // No gravity for pure rotation demo
     simulator_init(
-        &sim,
+        &m,
         gravity,
         0.01f, // 1ms timestep for better stability
         1 // 1 position iteration (no constraints)
     );
     
     // Create a body with distinct principal moments of inertia
-    RigidBody body;
+    RigidBodyModel bodymodel;
+    RigidBodyData bodydata;
     // Initialize with dummy size - we'll override the inertia
     niknum size[3] = {1.0f, 0.5f, 0.1f}; // Size doesn't matter as we'll override inertia
     niknum pos[3] = {0, 0, 0}; // At origin
     niknum angles[3] = {0, 0, 0}; // No initial rotation
     rigidbody_init(
-        &body,
+        &bodymodel,
+        &bodydata,
         BODY_BOX,
         size,
         1.0f, // Density of 1 for simplicity
@@ -29,20 +32,21 @@ int main() {
     );
     
     printf("body inertia: %.2f, %.2f, %.2f\n",
-           body.invInertia[0], body.invInertia[1], body.invInertia[2]);
-    printf("body mass: %.2f\n", body.invMass);
+           bodymodel.invInertia[0], bodymodel.invInertia[1], bodymodel.invInertia[2]);
+    printf("body mass: %.2f\n", bodymodel.invMass);
     
     // Set initial angular velocity mostly around the middle (unstable) axis
     // with small perturbations on other axes to trigger the instability
     niknum init_omega[3] = {0.0f, 10.0f, 0.01f};
     niknum init_vel[3] = {0.0f, 0.0f, 6.0f};
     for(int i = 0; i < 3; i++) {
-        body.omega[i] = init_omega[i];
-        body.vel[i] = init_vel[i];
+        bodydata.omega[i] = init_omega[i];
+        bodydata.vel[i] = init_vel[i];
     }
     
     // Add body to simulator
-    sim.rigidBodies[sim.rigidBodyCount++] = body;
+    m.rigidBodies[m.rigidBodyCount++] = bodymodel;
+    d.rigidBodies[m.rigidBodyCount - 1] = bodydata;
     
     // Initialize renderer
     Renderer renderer;
@@ -114,12 +118,12 @@ int main() {
         lastTime = currentTime;
         static float accumulator = 0.0f;
         accumulator += deltaTime;
-        while (accumulator >= sim.dt) {
-            simulator_simulate(&sim);
-            accumulator -= sim.dt;
+        while (accumulator >= m.dt) {
+            simulator_simulate(&m, &d);
+            accumulator -= m.dt;
         }
         
-        renderer_draw_simulation(&renderer, &sim);
+        renderer_draw_simulation(&renderer, &m, &d);
         SDL_Delay(1);
     }
     

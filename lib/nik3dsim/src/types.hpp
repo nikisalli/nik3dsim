@@ -13,11 +13,17 @@ namespace nik3dsim {
         BODY_PLANE
     } BodyType;
 
-    // RigidBody struct
-    typedef struct RigidBody {
+    typedef struct {
         BodyType type;
         niknum size[3];
         
+        uint32_t contype, conaffinity;
+
+        niknum invMass;
+        niknum invInertia[3];
+    } RigidBodyModel;
+
+    typedef struct {
         niknum pos[3];
         niknum rot[4];
         niknum invRot[4];
@@ -26,15 +32,10 @@ namespace nik3dsim {
 
         niknum prevPos[3];
         niknum prevRot[4];
-
-        uint32_t contype, conaffinity;
-        
-        niknum invMass;
-        niknum invInertia[3];
-    } RigidBody;
+    } RigidBodyData;
 
     // StaticBody struct
-    typedef struct StaticBody {
+    typedef struct {
         BodyType type;
         niknum size[3];
         
@@ -43,7 +44,7 @@ namespace nik3dsim {
         niknum invRot[4];
         
         uint32_t contype, conaffinity;
-    } StaticBody;
+    } StaticBodyModel;
 
     typedef struct DistanceConstraint {
         size_t b0;
@@ -68,22 +69,23 @@ namespace nik3dsim {
 
     } HingeConstraint;
 
-    // Simulator struct
     typedef struct {
         niknum gravity[3];
         niknum dt;
         niknum damping;
-        
-        RigidBody rigidBodies[100];
+
+        RigidBodyModel rigidBodies[100];
         size_t rigidBodyCount;
-        StaticBody staticBodies[100];
-        size_t staticBodyCount;
-        
+
         DistanceConstraint positionalConstraints[100];
         size_t positionalConstraintCount;
         HingeConstraint hingeConstraints[100];
         size_t hingeConstraintCount;
 
         size_t posIters;
-    } RigidBodySimulator;
+    } nikModel;
+
+    typedef struct {
+        RigidBodyData rigidBodies[100];
+    } nikData;
 }

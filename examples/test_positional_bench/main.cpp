@@ -6,24 +6,27 @@ using namespace nik3dsim;
 
 int main() {
     // Create simulator with custom timestep and iterations
-    RigidBodySimulator sim;
+    nikModel m;
+    nikData d;
     niknum gravity[3] = {0, 0, -10};
     simulator_init(
-        &sim,
+        &m,
         gravity,
         0.01f,      // Small timestep for stability
         1          // More iterations for constraint stability
     );
 
-    sim.damping = 0.0f;
+    m.damping = 0.0f;
     
     // Create first cube
-    RigidBody body1;
+    RigidBodyModel body1model;
+    RigidBodyData body1data;
     niknum size1[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
     niknum pos1[3] = {0, 0, 0};           // Positioned left of origin
     niknum angles1[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body1,
+        &body1model,
+        &body1data,
         BODY_BOX,
         size1,  
         1.0f,   // Density
@@ -32,12 +35,14 @@ int main() {
     );
     
     // Create second cube
-    RigidBody body2;
+    RigidBodyModel body2model;
+    RigidBodyData body2data;
     niknum size2[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
     niknum pos2[3] = {0, 2, 0};            // Positioned right of origin
     niknum angles2[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body2,
+        &body2model,
+        &body2data,
         BODY_BOX,
         size2,
         1.0f,   // Same density
@@ -46,12 +51,14 @@ int main() {
     );
 
     // Create third cube
-    RigidBody body3;
+    RigidBodyModel body3model;
+    RigidBodyData body3data;
     niknum size3[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
     niknum pos3[3] = {0, 6, 0};            // Positioned right of origin
     niknum angles3[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
-        &body3,
+        &body3model,
+        &body3data,
         BODY_BOX,
         size3,
         1.0f,   // Same density
@@ -60,20 +67,23 @@ int main() {
     );
     
     // Fix first body in place
-    body1.invMass = 0.0f;
-    body1.invInertia[0] = 0.0f;
-    body1.invInertia[1] = 0.0f;
-    body1.invInertia[2] = 0.0f;
+    body1model.invMass = 0.0f;
+    body1model.invInertia[0] = 0.0f;
+    body1model.invInertia[1] = 0.0f;
+    body1model.invInertia[2] = 0.0f;
     
     // Add bodies to simulator
-    int body1_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body1_idx] = body1;
+    int body1_idx = m.rigidBodyCount++;
+    m.rigidBodies[body1_idx] = body1model;
+    d.rigidBodies[body1_idx] = body1data;
     
-    int body2_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body2_idx] = body2;
+    int body2_idx = m.rigidBodyCount++;
+    m.rigidBodies[body2_idx] = body2model;
+    d.rigidBodies[body2_idx] = body2data;
 
-    int body3_idx = sim.rigidBodyCount++;
-    sim.rigidBodies[body3_idx] = body3;
+    int body3_idx = m.rigidBodyCount++;
+    m.rigidBodies[body3_idx] = body3model;
+    d.rigidBodies[body3_idx] = body3data;
     
     // Create positional constraint
     DistanceConstraint pos_constraint;
@@ -87,7 +97,7 @@ int main() {
     pos_constraint.r1[1] = -2.0f;
     pos_constraint.r1[2] = 0.0f;
     pos_constraint.distance = 0.0f;
-    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint;
+    m.positionalConstraints[m.positionalConstraintCount++] = pos_constraint;
 
     // Create hinge constraint
     HingeConstraint hinge_constraint;
@@ -100,7 +110,7 @@ int main() {
     hinge_constraint.a1[1] = 0.0f;
     hinge_constraint.a1[2] = 0.0f;
     hinge_constraint.compliance = 0.000000001f;
-    sim.hingeConstraints[sim.hingeConstraintCount++] = hinge_constraint;
+    m.hingeConstraints[m.hingeConstraintCount++] = hinge_constraint;
 
     // Create positional constraint
     DistanceConstraint pos_constraint2;
@@ -114,7 +124,7 @@ int main() {
     pos_constraint2.r1[1] = -2.0f;
     pos_constraint2.r1[2] = 0.0f;
     pos_constraint2.distance = 0.0f;
-    sim.positionalConstraints[sim.positionalConstraintCount++] = pos_constraint2;
+    m.positionalConstraints[m.positionalConstraintCount++] = pos_constraint2;
 
     // Create hinge constraint
     HingeConstraint hinge_constraint2;
@@ -127,12 +137,12 @@ int main() {
     hinge_constraint2.a1[1] = 0.0f;
     hinge_constraint2.a1[2] = 0.0f;
     hinge_constraint2.compliance = 0.000000001f;
-    sim.hingeConstraints[sim.hingeConstraintCount++] = hinge_constraint2;
+    m.hingeConstraints[m.hingeConstraintCount++] = hinge_constraint2;
     
     // Main loop
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 5e6; i++) {
-        simulator_simulate(&sim);
+        simulator_simulate(&m, &d);
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

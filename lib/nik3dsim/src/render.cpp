@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "math.hpp"
+#include "types.hpp"
 #include <cmath>
 
 namespace nik3dsim {
@@ -336,74 +337,78 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
     }
 }
 
-void renderer_draw_body(Renderer* renderer, RigidBody body) {
-    switch (body.type) {
+void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data) {
+    switch (model.type) {
         case BODY_BOX:
-            renderer_draw_wireframe_box(renderer, body.pos, body.size, body.rot);
+            renderer_draw_wireframe_box(renderer, data.pos, model.size, data.rot);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, body.pos, body.size[0]);
+            renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0]);
             break;
         default:
             break;
     }
 }
 
-void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstraint* constraint, const RigidBody* bodies) {
+void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstraint* constraint, const RigidBodyModel* models, const RigidBodyData* data) {
     // Get the two connected bodies
-    const RigidBody* body0 = &bodies[constraint->b0];
-    const RigidBody* body1 = &bodies[constraint->b1];
+    const RigidBodyModel* body0model = &models[constraint->b0];
+    const RigidBodyModel* body1model = &models[constraint->b1];
+    const RigidBodyData* body0data = &data[constraint->b0];
+    const RigidBodyData* body1data = &data[constraint->b1];
     
     // Transform attachment points from local to world space
     niknum world_point0[3], world_point1[3];
     
     // Transform r0 by body0's rotation and position
-    vec3_quat_rotate(world_point0, body0->rot, constraint->r0);
-    vec3_add(world_point0, world_point0, body0->pos);
+    vec3_quat_rotate(world_point0, body0data->rot, constraint->r0);
+    vec3_add(world_point0, world_point0, body0data->pos);
     
     // Transform r1 by body1's rotation and position
-    vec3_quat_rotate(world_point1, body1->rot, constraint->r1);
-    vec3_add(world_point1, world_point1, body1->pos);
+    vec3_quat_rotate(world_point1, body0data->rot, constraint->r1);
+    vec3_add(world_point1, world_point1, body0data->pos);
     
     // Draw red line between attachment points
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // Red color
     renderer_draw_wireframe_line(renderer, world_point0, world_point1);
 }
 
-void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* constraint, const RigidBody* bodies) {
+void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* constraint, const RigidBodyModel* models, const RigidBodyData* data) {
     // Get the two connected bodies
-    const RigidBody* body0 = &bodies[constraint->b0];
-    const RigidBody* body1 = &bodies[constraint->b1];
+    const RigidBodyModel* body0model = &models[constraint->b0];
+    const RigidBodyModel* body1model = &models[constraint->b1];
+    const RigidBodyData* body0data = &data[constraint->b0];
+    const RigidBodyData* body1data = &data[constraint->b1];
     
     // Transform axis by body rotations
     niknum a0[3], a1[3];
-    vec3_quat_rotate(a0, body0->rot, constraint->a0);
-    vec3_quat_rotate(a1, body1->rot, constraint->a1);
+    vec3_quat_rotate(a0, body0data->rot, constraint->a0);
+    vec3_quat_rotate(a1, body0data->rot, constraint->a1);
     vec3_normalize(a0, a0);
     vec3_normalize(a1, a1);
-    vec3_addto(a0, body0->pos);
-    vec3_addto(a1, body1->pos);
+    vec3_addto(a0, body0data->pos);
+    vec3_addto(a1, body0data->pos);
     
     // Draw green line between axis and body positions
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Blue color
-    renderer_draw_wireframe_line(renderer, body0->pos, a0);
-    renderer_draw_wireframe_line(renderer, body1->pos, a1);
+    renderer_draw_wireframe_line(renderer, body0data->pos, a0);
+    renderer_draw_wireframe_line(renderer, body0data->pos, a1);
 }
 
-void renderer_draw_constraints(Renderer* renderer, const RigidBodySimulator* sim) {
+void renderer_draw_constraints(Renderer* renderer, const nikModel* model, const nikData* data) {
     // Draw all distance constraints
-    for (size_t i = 0; i < sim->positionalConstraintCount; i++) {
-        renderer_draw_distance_constraint(renderer, &sim->positionalConstraints[i], sim->rigidBodies);
+    for (size_t i = 0; i < model->positionalConstraintCount; i++) {
+        renderer_draw_distance_constraint(renderer, &model->positionalConstraints[i], model->rigidBodies, data->rigidBodies);
     }
     
     // Draw all hinge constraints
-    for (size_t i = 0; i < sim->hingeConstraintCount; i++) {
-        renderer_draw_hinge_constraint(renderer, &sim->hingeConstraints[i], sim->rigidBodies);
+    for (size_t i = 0; i < model->hingeConstraintCount; i++) {
+        renderer_draw_hinge_constraint(renderer, &model->hingeConstraints[i], model->rigidBodies, data->rigidBodies);
     }
 }
 
 // Modify renderer_draw_simulation to include constraint drawing:
-void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim) {
+void renderer_draw_simulation(Renderer* renderer, const nikModel* model, const nikData* data) {
     // Draw coordinate axes
     niknum origin[3] = {0, 0, 0};
     niknum x_axis[3] = {1, 0, 0};
@@ -420,12 +425,12 @@ void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim)
     renderer_draw_wireframe_line(renderer, origin, z_axis);
     
     // Draw all bodies
-    for (int i = 0; i < sim->rigidBodyCount; i++) {
-        renderer_draw_body(renderer, sim->rigidBodies[i]);
+    for (int i = 0; i < model->rigidBodyCount; i++) {
+        renderer_draw_body(renderer, model->rigidBodies[i], data->rigidBodies[i]);
     }
     
     // Draw all constraints
-    renderer_draw_constraints(renderer, sim);
+    renderer_draw_constraints(renderer, model, data);
     
     renderer_present(renderer);
 

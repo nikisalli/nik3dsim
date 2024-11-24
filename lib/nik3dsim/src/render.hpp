@@ -58,10 +58,8 @@ void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[
 void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius);
 
 // High-level rendering
-void renderer_draw_body(Renderer* renderer, RigidBody body);
-void renderer_draw_simulation(Renderer* renderer, const RigidBodySimulator* sim);
-void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstraint* constraint, const RigidBody* bodies);
-void renderer_draw_constraints(Renderer* renderer, const RigidBodySimulator* sim);
+void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data);
+void renderer_draw_simulation(Renderer* renderer, const nikModel* model, const nikData* data);
 
 // Window management
 void renderer_resize(Renderer* renderer, int width, int height);
