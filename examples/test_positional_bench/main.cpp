@@ -74,16 +74,16 @@ int main() {
     
     // Add bodies to simulator
     int body1_idx = m.rigidBodyCount++;
-    m.rigidBodies[body1_idx] = body1model;
-    d.rigidBodies[body1_idx] = body1data;
+    m.bodies[body1_idx] = body1model;
+    d.bodies[body1_idx] = body1data;
     
     int body2_idx = m.rigidBodyCount++;
-    m.rigidBodies[body2_idx] = body2model;
-    d.rigidBodies[body2_idx] = body2data;
+    m.bodies[body2_idx] = body2model;
+    d.bodies[body2_idx] = body2data;
 
     int body3_idx = m.rigidBodyCount++;
-    m.rigidBodies[body3_idx] = body3model;
-    d.rigidBodies[body3_idx] = body3data;
+    m.bodies[body3_idx] = body3model;
+    d.bodies[body3_idx] = body3data;
     
     // Create positional constraint
     DistanceConstraint pos_constraint;
@@ -142,7 +142,7 @@ int main() {
     // Main loop
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 5e6; i++) {
-        simulator_simulate(&m, &d);
+        simulator_step(&m, &d);
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

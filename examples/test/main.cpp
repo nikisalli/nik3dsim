@@ -45,8 +45,8 @@ int main() {
     }
     
     // Add body to simulator
-    m.rigidBodies[m.rigidBodyCount++] = bodymodel;
-    d.rigidBodies[m.rigidBodyCount - 1] = bodydata;
+    m.bodies[m.rigidBodyCount++] = bodymodel;
+    d.bodies[m.rigidBodyCount - 1] = bodydata;
     
     // Initialize renderer
     Renderer renderer;
@@ -119,7 +119,7 @@ int main() {
         static float accumulator = 0.0f;
         accumulator += deltaTime;
         while (accumulator >= m.dt) {
-            simulator_simulate(&m, &d);
+            simulator_step(&m, &d);
             accumulator -= m.dt;
         }
         

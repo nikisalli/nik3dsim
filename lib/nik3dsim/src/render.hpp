@@ -2,6 +2,7 @@
 #define RENDERER_HPP
 
 #include <SDL2/SDL.h>
+#include "math.hpp"
 #include "types.hpp" // For RigidBody definitions
 
 namespace nik3dsim {
@@ -55,7 +56,9 @@ SDL_Point renderer_world_to_screen(Renderer* renderer, niknum point[3]);
 // Drawing primitives
 void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], const niknum end[3]);
 void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]);
+void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]);
 void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius);
+void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir[3], float length, float head_length, float head_size);
 
 // High-level rendering
 void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data);

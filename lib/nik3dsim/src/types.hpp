@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <stdlib.h>
 
@@ -10,8 +11,17 @@ namespace nik3dsim {
     typedef enum {
         BODY_SPHERE,
         BODY_BOX,
+        BODY_CAPSULE,
         BODY_PLANE
     } BodyType;
+
+    typedef struct {
+        size_t b0, b1;
+        niknum pos[3];
+        niknum n[3]; // pointing from contact to body0
+        niknum depth;
+        bool is_static;
+    } Contact;
 
     typedef struct {
         BodyType type;
@@ -32,18 +42,19 @@ namespace nik3dsim {
 
         niknum prevPos[3];
         niknum prevRot[4];
+
+        niknum cache[6];
     } RigidBodyData;
 
-    // StaticBody struct
     typedef struct {
         BodyType type;
-        niknum size[3];
-        
+        niknum size[3];  // for planes it is the normal
+
+        uint32_t contype, conaffinity;
+
         niknum pos[3];
         niknum rot[4];
         niknum invRot[4];
-        
-        uint32_t contype, conaffinity;
     } StaticBodyModel;
 
     typedef struct DistanceConstraint {
@@ -74,8 +85,10 @@ namespace nik3dsim {
         niknum dt;
         niknum damping;
 
-        RigidBodyModel rigidBodies[100];
+        RigidBodyModel bodies[100];
         size_t rigidBodyCount;
+        StaticBodyModel staticBodies[100];
+        size_t staticBodyCount;
 
         DistanceConstraint positionalConstraints[100];
         size_t positionalConstraintCount;
@@ -86,6 +99,8 @@ namespace nik3dsim {
     } nikModel;
 
     typedef struct {
-        RigidBodyData rigidBodies[100];
+        RigidBodyData bodies[100];
+        Contact contacts[100];
+        size_t contactCount;
     } nikData;
 }

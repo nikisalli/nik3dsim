@@ -3,7 +3,6 @@
 #include <math.h>
 
 #define niknum float
-#define nikpi 3.1415926535897932384626433832795
 
 namespace nik3dsim {
     // Vec3 operations
@@ -221,5 +220,19 @@ namespace nik3dsim {
         res[1] = -q[1];  // -y
         res[2] = -q[2];  // -z
         res[3] = q[3];   // w
+    }
+
+    inline void euler2quat(niknum res[4], const niknum euler[3]) {
+        niknum cx = cosf(euler[0] * 0.5f);
+        niknum cy = cosf(euler[1] * 0.5f);
+        niknum cz = cosf(euler[2] * 0.5f);
+        niknum sx = sinf(euler[0] * 0.5f);
+        niknum sy = sinf(euler[1] * 0.5f);
+        niknum sz = sinf(euler[2] * 0.5f);
+        
+        res[0] = sx * cy * cz - cx * sy * sz;  // x
+        res[1] = cx * sy * cz + sx * cy * sz;  // y
+        res[2] = cx * cy * sz - sx * sy * cz;  // z
+        res[3] = cx * cy * cz + sx * sy * sz;  // w
     }
 } // namespace nik3dsim

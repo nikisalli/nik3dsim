@@ -1,35 +1,29 @@
+#include <cmath>
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include "forward.hpp"
+#include "colliders.hpp"
 #include "math.hpp"
 #include "types.hpp"
 
 namespace nik3dsim {
     void rigidbody_init(RigidBodyModel* bm, RigidBodyData* bd, BodyType type, niknum size[3], niknum density, niknum pos[3], niknum angles[3]) {
         bm->type = type;
-        for(int i = 0; i < 3; i++) {
-            bm->size[i] = size[i];
-            bd->pos[i] = pos[i];
-            bd->vel[i] = 0.0f;
-            bd->omega[i] = 0.0f;
-        }
+        vec3_copy(bm->size, size);
+        vec3_copy(bd->pos, pos);
+        vec3_copy(bd->prevPos, pos);
+        vec3_zero(bd->vel);
+        vec3_zero(bd->omega);
         
         // Initialize rotation from Euler angles
-        niknum cx = cosf(angles[0] * 0.5f);
-        niknum cy = cosf(angles[1] * 0.5f);
-        niknum cz = cosf(angles[2] * 0.5f);
-        niknum sx = sinf(angles[0] * 0.5f);
-        niknum sy = sinf(angles[1] * 0.5f);
-        niknum sz = sinf(angles[2] * 0.5f);
-        
-        bd->rot[0] = sx * cy * cz - cx * sy * sz;  // x
-        bd->rot[1] = cx * sy * cz + sx * cy * sz;  // y
-        bd->rot[2] = cx * cy * sz - sx * sy * cz;  // z
-        bd->rot[3] = cx * cy * cz + sx * sy * sz;  // w
+        euler2quat(bd->rot, angles);
+        quat_conj(bd->invRot, bd->rot);
+        vec4_copy(bd->prevRot, bd->rot);
 
         niknum Ix, Iy, Iz;
+        niknum m_cy, m_hs;
         
         if (density > 0.0f) {
             niknum mass;
@@ -44,7 +38,6 @@ namespace nik3dsim {
                     bm->invInertia[1] = 1.0f / Iy;
                     bm->invInertia[2] = 1.0f / Iz;
                     break;
-                    
                 case BODY_SPHERE:
                     mass = 4.0f/3.0f * M_PI * size[0] * size[0] * size[0] * density;
                     bm->invMass = 1.0f / mass;
@@ -53,6 +46,21 @@ namespace nik3dsim {
                     bm->invInertia[1] = 1.0f / Ix;
                     bm->invInertia[2] = 1.0f / Ix;
                     break;
+                case BODY_CAPSULE:  // oriented along z axis
+                    // https://www.gamedev.net/tutorials/programming/math-and-physics/capsule-inertia-tensor-r3856/
+                    m_cy = size[1] * size[0] * size[0] * M_PI * density;
+                    m_hs = (2.0f/3.0f) * M_PI * size[0] * size[0] * size[0] * density;
+                    mass = m_cy + 2.0f * m_hs;
+                    bm->invMass = 1.0f / mass;
+                    printf("m_cy: %f, m_hs: %f mass: %f invMass: %f\n", m_cy, m_hs, mass, bm->invMass);
+                    Ix = m_cy * (size[0] * size[0] / 12.0 + size[1] * size[1] / 4.0) + 
+                        2 * m_hs * (2 * size[0] * size[0] / 5.0 + size[1] * size[1] / 2.0 + 3 * size[1] * size[0] / 8.0);
+                    Iy = m_cy * (size[0] * size[0] / 2.0) + 2 * m_hs * (2 * size[0] * size[0] / 5.0);
+                    bm->invInertia[0] = 1.0f / Ix;
+                    bm->invInertia[1] = 1.0f / Ix;
+                    bm->invInertia[2] = 1.0f / Iy;
+                    printf("Ix: %f, Iy: %f invInertia: %f, %f, %f\n", Ix, Iy, bm->invInertia[0], bm->invInertia[1], bm->invInertia[2]);
+                    break;
                 default:
                     printf("Unknown body type: %d\n", type);
                     exit(1);
@@ -60,10 +68,16 @@ namespace nik3dsim {
             }
         } else {
             bm->invMass = 0.0f;
-            bm->invInertia[0] = 0.0f;
-            bm->invInertia[1] = 0.0f;
-            bm->invInertia[2] = 0.0f;
+            vec3_zero(bm->invInertia);
         }
+    }
+
+    void static_init(StaticBodyModel* bm, BodyType type, niknum size[3], niknum pos[3], niknum angles[3]) {
+        bm->type = type;
+        vec3_copy(bm->size, size);
+        vec3_copy(bm->pos, pos);
+        euler2quat(bm->rot, angles);
+        quat_conj(bm->invRot, bm->rot);
     }
 
     void rigidbody_integrate(RigidBodyModel* bm, RigidBodyData* bd, niknum dt, niknum gravity[3]) {
@@ -200,7 +214,6 @@ namespace nik3dsim {
         vec3_cross(n, a0, a1);
         niknum c = vec3_normalize(n, n);
 
-
         // Compute generalized inverse masses (angular part only for hinge)
         niknum w = n[0] * n[0] * bm0->invInertia[0] +
                    n[1] * n[1] * bm0->invInertia[1] + 
@@ -243,6 +256,38 @@ namespace nik3dsim {
         quat_normalize(bd1->rot, bd1->rot);
     }
 
+    void solve_contact_rigid_rigid(Contact* contact, RigidBodyModel* bm0, RigidBodyModel* bm1, RigidBodyData* bd0, RigidBodyData* bd1, niknum dt) {
+        
+    }
+
+    void solve_contact_rigid_static(Contact* contact, RigidBodyModel* bm0, StaticBodyModel* bm1, RigidBodyData* bd0) {
+        // Update position
+        vec3_addscl(bd0->pos, bd0->pos, contact->n, -contact->depth);
+        
+        niknum r0[3], tmp[4];
+        vec3_sub(r0, contact->pos, bd0->pos);
+        
+        // Compute angular velocity correction
+        niknum dom[3], drot[4];
+        // Cross product of r × n gives rotation axis
+        vec3_cross(tmp, r0, contact->n);
+        // Transform to body space for inertia tensor application
+        vec3_quat_rotate(dom, bd0->invRot, tmp);
+        // Apply inverse inertia 
+        vec3_mul(dom, dom, bm0->invInertia);
+        // Transform back to world space
+        vec3_quat_rotate(dom, bd0->rot, dom);
+        
+        // Convert angular velocity to quaternion
+        vec4_zero(drot);
+        vec3_copy(drot, dom);
+        
+        // Update rotation quaternion
+        quat_mul(tmp, drot, bd0->rot);
+        vec4_addscl(bd0->rot, bd0->rot, tmp, -contact->depth * 0.5f);
+        quat_normalize(bd0->rot, bd0->rot);
+    }
+
     void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters) {
         vec3_copy(m->gravity, gravity);
         m->dt = timeStepSize;
@@ -252,38 +297,65 @@ namespace nik3dsim {
         m->hingeConstraintCount = 0;
     }
 
-    void simulator_simulate(nikModel* m, nikData* d) {
-        // TODO: Implement CollectCollisionPairs()
+    void simulator_step(nikModel* m, nikData* d) {
+        // Collide rigid bodies
+        d->contactCount = 0;
+        for (int i = 0; i < m->rigidBodyCount; i++) {
+            RigidBodyModel* bm0 = &m->bodies[i];
+            RigidBodyData* bd0 = &d->bodies[i];
+            for (int j = i + 1; j < m->rigidBodyCount; j++) {
+                RigidBodyModel* bm1 = &m->bodies[j];
+                RigidBodyData* bd1 = &d->bodies[j];
+                if ((bm0->contype & bm1->conaffinity) || (bm1->contype & bm0->conaffinity)) {
+                    
+                }
+            }
+
+            for (int j = 0; j < m->staticBodyCount; j++) {
+                StaticBodyModel* bm1 = &m->staticBodies[j];
+                if ((bm0->contype & bm1->conaffinity) || (bm1->contype & bm0->conaffinity)) {
+                    Contact contact = collide_rigid_static(bm0, bm1, bd0);
+                    contact.b0 = i;
+                    contact.b1 = j;
+                    contact.is_static = true;
+                    if (contact.depth < 0.0f) {
+                        printf("contact depth: %.2f\n", contact.depth);
+                        d->contacts[d->contactCount++] = contact;
+                    }
+                }
+            }
+        }
         
         // Integrate bodies
         for (int i = 0; i < m->rigidBodyCount; i++) {
-            rigidbody_integrate(&m->rigidBodies[i], &d->rigidBodies[i], m->dt, m->gravity);
+            rigidbody_integrate(&m->bodies[i], &d->bodies[i], m->dt, m->gravity);
         }
         
         // Solve position constraints
         for (int iter = 0; iter < m->posIters; iter++) {
             for (int i = 0; i < m->positionalConstraintCount; i++) {
-                DistanceConstraint* constraint = &m->positionalConstraints[i];
-                RigidBodyModel* bm0 = &m->rigidBodies[constraint->b0];
-                RigidBodyModel* bm1 = &m->rigidBodies[constraint->b1];
-                RigidBodyData* bd0 = &d->rigidBodies[constraint->b0];
-                RigidBodyData* bd1 = &d->rigidBodies[constraint->b1];
-                solve_positional_constraint(bm0, bm1, bd0, bd1, constraint, m->dt);
+                DistanceConstraint* c = &m->positionalConstraints[i];
+                solve_positional_constraint(&m->bodies[c->b0], &m->bodies[c->b1], &d->bodies[c->b0], &d->bodies[c->b1], c, m->dt);
             }
 
             for (int i = 0; i < m->hingeConstraintCount; i++) {
-                HingeConstraint* constraint = &m->hingeConstraints[i];
-                RigidBodyModel* bm0 = &m->rigidBodies[constraint->b0];
-                RigidBodyModel* bm1 = &m->rigidBodies[constraint->b1];
-                RigidBodyData* bd0 = &d->rigidBodies[constraint->b0];
-                RigidBodyData* bd1 = &d->rigidBodies[constraint->b1];
-                solve_hinge_constraint(bm0, bm1, bd0, bd1, constraint, m->dt);
+                HingeConstraint* c = &m->hingeConstraints[i];
+                solve_hinge_constraint(&m->bodies[c->b0], &m->bodies[c->b1], &d->bodies[c->b0], &d->bodies[c->b1], c, m->dt);
+            }
+
+            for (int i = 0; i < d->contactCount; i++) {
+                Contact* con = &d->contacts[i];
+                if (con->is_static) {
+                    solve_contact_rigid_static(con, &m->bodies[con->b0], &m->staticBodies[con->b1], &d->bodies[con->b0]);
+                } else {
+                    solve_contact_rigid_rigid(con, &m->bodies[con->b0], &m->bodies[con->b1], &d->bodies[con->b0], &d->bodies[con->b1], m->dt);
+                }
             }
         }
         
         // Update velocities
         for (int i = 0; i < m->rigidBodyCount; i++) {
-            RigidBodyData* bd = &d->rigidBodies[i];
+            RigidBodyData* bd = &d->bodies[i];
             
             // Update linear velocity from position change
             niknum dp[3];
@@ -297,7 +369,7 @@ namespace nik3dsim {
             niknum axis[3] = {tmp[0], tmp[1], tmp[2]};
             niknum angle = vec3_normalize(axis, axis);
             niknum speed = 2 * atan2(angle, tmp[3]);
-            speed -= (speed > nikpi) * 2 * nikpi;
+            speed -= (speed > M_PI) * 2 * M_PI;
             vec3_scl(bd->omega, axis, speed / m->dt);
 
             // Apply damping
@@ -308,8 +380,8 @@ namespace nik3dsim {
 
     void print_simulation_state(nikModel* m, nikData* d) {
         for (int i = 0; i < m->rigidBodyCount; i++) {
-            RigidBodyModel* bm = &m->rigidBodies[i];
-            RigidBodyData* bd = &d->rigidBodies[i];
+            RigidBodyModel* bm = &m->bodies[i];
+            RigidBodyData* bd = &d->bodies[i];
             printf("body %d (%s):", i, bm->type == BODY_BOX ? "box" : "sphere");
             printf(" pos: %.2f, %.2f, %.2f", bd->pos[0], bd->pos[1], bd->pos[2]);
             printf(" vel: %.2f, %.2f, %.2f", bd->vel[0], bd->vel[1], bd->vel[2]);

@@ -2,6 +2,7 @@
 #include "math.hpp"
 #include "types.hpp"
 #include <cmath>
+#include <cstddef>
 
 namespace nik3dsim {
 
@@ -262,6 +263,271 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
     }
 }
 
+void renderer_draw_wireframe_plane(Renderer* renderer, niknum pos[3], niknum rot[4]) {
+    static const float SIZE = 10.0f;
+    static const size_t NUM = 10;
+    
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
+    
+    // Create grid points in local space
+    niknum local_point[3], world_point[3];
+    niknum start[3], end[3];
+    
+    // Draw lines parallel to local X axis
+    for (int i = 0; i <= NUM; i++) {
+        float offset = -SIZE/2.0f + i * (SIZE/NUM);
+        
+        // Start point of line
+        local_point[0] = -SIZE/2.0f;
+        local_point[1] = offset;
+        local_point[2] = 0.0f;
+        
+        // Transform to world space
+        vec3_quat_rotate(world_point, rot, local_point);
+        vec3_add(start, pos, world_point);
+        
+        // End point of line
+        local_point[0] = SIZE/2.0f;
+        local_point[1] = offset;
+        local_point[2] = 0.0f;
+        
+        // Transform to world space
+        vec3_quat_rotate(world_point, rot, local_point);
+        vec3_add(end, pos, world_point);
+        
+        renderer_draw_wireframe_line(renderer, start, end);
+    }
+    
+    // Draw lines parallel to local Y axis
+    for (int i = 0; i <= NUM; i++) {
+        float offset = -SIZE/2.0f + i * (SIZE/NUM);
+        
+        // Start point of line
+        local_point[0] = offset;
+        local_point[1] = -SIZE/2.0f;
+        local_point[2] = 0.0f;
+        
+        // Transform to world space
+        vec3_quat_rotate(world_point, rot, local_point);
+        vec3_add(start, pos, world_point);
+        
+        // End point of line
+        local_point[0] = offset;
+        local_point[1] = SIZE/2.0f;
+        local_point[2] = 0.0f;
+        
+        // Transform to world space
+        vec3_quat_rotate(world_point, rot, local_point);
+        vec3_add(end, pos, world_point);
+        
+        renderer_draw_wireframe_line(renderer, start, end);
+    }
+}
+
+void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]) {
+    const int segments = 16;  // Same as sphere for consistency
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);  // Green color like other shapes
+    
+    // Extract dimensions
+    float radius = size[0];     // Radius
+    float height = size[1];     // Total height
+    float halfHeight = height * 0.5f;
+    
+    // Draw circles at different heights for the cylinder part
+    niknum circle_points[segments + 1][3];
+    niknum rotated_point[3];
+    niknum world_point[3];
+    
+    // Generate points for one circle (in XY plane, will be rotated 90° around X to face Z)
+    for (int i = 0; i <= segments; i++) {
+        float angle = (float)i / segments * 2.0f * M_PI;
+        circle_points[i][0] = radius * cosf(angle);
+        circle_points[i][1] = radius * sinf(angle);
+        circle_points[i][2] = 0.0f;
+    }
+    
+    // Draw vertical lines of cylinder
+    for (int i = 0; i < segments; i++) {
+        // Bottom point
+        niknum bottom[3] = {
+            circle_points[i][0],
+            circle_points[i][1],
+            -halfHeight
+        };
+        
+        // Top point
+        niknum top[3] = {
+            circle_points[i][0],
+            circle_points[i][1],
+            halfHeight
+        };
+        
+        // Transform points to world space
+        niknum world_bottom[3], world_top[3];
+        vec3_quat_rotate(rotated_point, rot, bottom);
+        vec3_add(world_bottom, pos, rotated_point);
+        
+        vec3_quat_rotate(rotated_point, rot, top);
+        vec3_add(world_top, pos, rotated_point);
+        
+        // Draw vertical line
+        renderer_draw_wireframe_line(renderer, world_bottom, world_top);
+    }
+    
+    // Draw circles at top and bottom of cylinder
+    for (int h = 0; h <= 1; h++) {  // h=0 for bottom, h=1 for top
+        float z = (h == 0) ? -halfHeight : halfHeight;
+        
+        for (int i = 0; i < segments; i++) {
+            niknum p1[3] = {
+                circle_points[i][0],
+                circle_points[i][1],
+                z
+            };
+            
+            niknum p2[3] = {
+                circle_points[i + 1][0],
+                circle_points[i + 1][1],
+                z
+            };
+            
+            // Transform points to world space
+            niknum world_p1[3], world_p2[3];
+            vec3_quat_rotate(rotated_point, rot, p1);
+            vec3_add(world_p1, pos, rotated_point);
+            
+            vec3_quat_rotate(rotated_point, rot, p2);
+            vec3_add(world_p2, pos, rotated_point);
+            
+            renderer_draw_wireframe_line(renderer, world_p1, world_p2);
+        }
+    }
+    
+    // Draw hemispheres at top and bottom
+    for (int h = 0; h <= 1; h++) {  // h=0 for bottom, h=1 for top
+        float baseZ = (h == 0) ? -halfHeight : halfHeight;
+        float zSign = (h == 0) ? -1.0f : 1.0f;
+        
+        // Draw longitude lines
+        for (int i = 0; i < segments; i++) {
+            float phi = (float)i / segments * 2.0f * M_PI;
+            float nextPhi = (float)(i + 1) / segments * 2.0f * M_PI;
+            
+            // Draw quarter circles at this longitude
+            for (int j = 0; j < segments/4; j++) {
+                float theta = (float)j / ((float)segments/4) * M_PI * 0.5f;
+                float nextTheta = (float)(j + 1) / ((float)segments/4) * M_PI * 0.5f;
+                
+                niknum p1[3] = {
+                    radius * cosf(phi) * cosf(theta),
+                    radius * sinf(phi) * cosf(theta),
+                    baseZ + zSign * radius * sinf(theta)
+                };
+                
+                niknum p2[3] = {
+                    radius * cosf(phi) * cosf(nextTheta),
+                    radius * sinf(phi) * cosf(nextTheta),
+                    baseZ + zSign * radius * sinf(nextTheta)
+                };
+                
+                // Transform and draw longitude lines
+                niknum world_p1[3], world_p2[3];
+                vec3_quat_rotate(rotated_point, rot, p1);
+                vec3_add(world_p1, pos, rotated_point);
+                
+                vec3_quat_rotate(rotated_point, rot, p2);
+                vec3_add(world_p2, pos, rotated_point);
+                
+                renderer_draw_wireframe_line(renderer, world_p1, world_p2);
+                
+                // Draw latitude lines (connecting adjacent longitudes)
+                niknum p3[3] = {
+                    radius * cosf(nextPhi) * cosf(theta),
+                    radius * sinf(nextPhi) * cosf(theta),
+                    baseZ + zSign * radius * sinf(theta)
+                };
+                
+                niknum world_p3[3];
+                vec3_quat_rotate(rotated_point, rot, p3);
+                vec3_add(world_p3, pos, rotated_point);
+                
+                renderer_draw_wireframe_line(renderer, world_p1, world_p3);
+            }
+        }
+    }
+}
+
+void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir[3], float length, float head_length, float head_size) {
+    // Normalize direction vector and scale to desired length
+    niknum normalized_dir[3];
+    vec3_normalize(normalized_dir, dir);
+    vec3_scl(normalized_dir, normalized_dir, length);
+    
+    // Calculate arrow end point
+    niknum end[3];
+    vec3_add(end, pos, normalized_dir);
+    
+    // Draw main shaft
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 255, 0, 255);  // Yellow color
+    renderer_draw_wireframe_line(renderer, pos, end);
+    
+    // Calculate arrow head points
+    // First, find two vectors perpendicular to direction vector
+    niknum perpA[3], perpB[3];
+    
+    // Find first perpendicular vector
+    if (fabs(normalized_dir[1]) < fabs(normalized_dir[0])) {
+        perpA[0] = -normalized_dir[1];
+        perpA[1] = normalized_dir[0];
+        perpA[2] = 0;
+    } else {
+        perpA[0] = 0;
+        perpA[1] = -normalized_dir[2];
+        perpA[2] = normalized_dir[1];
+    }
+    vec3_normalize(perpA, perpA);
+    vec3_scl(perpA, perpA, head_size);
+    
+    // Find second perpendicular vector using cross product
+    vec3_cross(perpB, normalized_dir, perpA);
+    vec3_normalize(perpB, perpB);
+    vec3_scl(perpB, perpB, head_size);
+    
+    // Calculate arrow head base point
+    niknum head_base[3];
+    niknum head_dir[3];
+    vec3_scl(head_dir, normalized_dir, -head_length);
+    vec3_add(head_base, end, head_dir);
+    
+    // Calculate four points around base of arrow head
+    niknum head_points[4][3];
+    
+    // Point 1
+    vec3_add(head_points[0], head_base, perpA);
+    vec3_add(head_points[0], head_points[0], perpB);
+    
+    // Point 2
+    vec3_add(head_points[1], head_base, perpA);
+    vec3_sub(head_points[1], head_points[1], perpB);
+    
+    // Point 3
+    vec3_sub(head_points[2], head_base, perpA);
+    vec3_sub(head_points[2], head_points[2], perpB);
+    
+    // Point 4
+    vec3_sub(head_points[3], head_base, perpA);
+    vec3_add(head_points[3], head_points[3], perpB);
+    
+    // Draw arrow head
+    for (int i = 0; i < 4; i++) {
+        // Draw lines from base points to tip
+        renderer_draw_wireframe_line(renderer, head_points[i], end);
+        
+        // Draw base of arrow head
+        renderer_draw_wireframe_line(renderer, head_points[i], head_points[(i + 1) % 4]);
+    }
+}
+
 void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState) {
     static const float ROTATION_SPEED = 0.3f;    // Degrees per pixel
     static const float ZOOM_SPEED = 1.0f;
@@ -345,6 +611,27 @@ void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData 
         case BODY_SPHERE:
             renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0]);
             break;
+        case BODY_PLANE:
+            renderer_draw_wireframe_plane(renderer, data.pos, data.rot);
+            break;
+        case BODY_CAPSULE:
+            renderer_draw_wireframe_capsule(renderer, data.pos, model.size, data.rot);
+            break;
+        default:
+            break;
+    }
+}
+
+void renderer_draw_static(Renderer* renderer, StaticBodyModel model) {
+    switch (model.type) {
+        case BODY_BOX:
+            renderer_draw_wireframe_box(renderer, model.pos, model.size, model.rot);
+            break;
+        case BODY_SPHERE:
+            renderer_draw_wireframe_sphere(renderer, model.pos, model.size[0]);
+            break;
+        case BODY_PLANE:
+            renderer_draw_wireframe_plane(renderer, model.pos, model.rot);
         default:
             break;
     }
@@ -365,8 +652,8 @@ void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstra
     vec3_add(world_point0, world_point0, body0data->pos);
     
     // Transform r1 by body1's rotation and position
-    vec3_quat_rotate(world_point1, body0data->rot, constraint->r1);
-    vec3_add(world_point1, world_point1, body0data->pos);
+    vec3_quat_rotate(world_point1, body1data->rot, constraint->r1);
+    vec3_add(world_point1, world_point1, body1data->pos);
     
     // Draw red line between attachment points
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // Red color
@@ -383,27 +670,27 @@ void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* c
     // Transform axis by body rotations
     niknum a0[3], a1[3];
     vec3_quat_rotate(a0, body0data->rot, constraint->a0);
-    vec3_quat_rotate(a1, body0data->rot, constraint->a1);
+    vec3_quat_rotate(a1, body1data->rot, constraint->a1);
     vec3_normalize(a0, a0);
     vec3_normalize(a1, a1);
     vec3_addto(a0, body0data->pos);
-    vec3_addto(a1, body0data->pos);
+    vec3_addto(a1, body1data->pos);
     
     // Draw green line between axis and body positions
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Blue color
     renderer_draw_wireframe_line(renderer, body0data->pos, a0);
-    renderer_draw_wireframe_line(renderer, body0data->pos, a1);
+    renderer_draw_wireframe_line(renderer, body1data->pos, a1);
 }
 
 void renderer_draw_constraints(Renderer* renderer, const nikModel* model, const nikData* data) {
     // Draw all distance constraints
     for (size_t i = 0; i < model->positionalConstraintCount; i++) {
-        renderer_draw_distance_constraint(renderer, &model->positionalConstraints[i], model->rigidBodies, data->rigidBodies);
+        renderer_draw_distance_constraint(renderer, &model->positionalConstraints[i], model->bodies, data->bodies);
     }
     
     // Draw all hinge constraints
     for (size_t i = 0; i < model->hingeConstraintCount; i++) {
-        renderer_draw_hinge_constraint(renderer, &model->hingeConstraints[i], model->rigidBodies, data->rigidBodies);
+        renderer_draw_hinge_constraint(renderer, &model->hingeConstraints[i], model->bodies, data->bodies);
     }
 }
 
@@ -426,7 +713,11 @@ void renderer_draw_simulation(Renderer* renderer, const nikModel* model, const n
     
     // Draw all bodies
     for (int i = 0; i < model->rigidBodyCount; i++) {
-        renderer_draw_body(renderer, model->rigidBodies[i], data->rigidBodies[i]);
+        renderer_draw_body(renderer, model->bodies[i], data->bodies[i]);
+    }
+
+    for (int i = 0; i < model->staticBodyCount; i++) {
+        renderer_draw_static(renderer, model->staticBodies[i]);
     }
     
     // Draw all constraints
