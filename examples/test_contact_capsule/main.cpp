@@ -21,7 +21,7 @@ int main() {
     RigidBodyModel body1model;
     RigidBodyData body1data;
     niknum size1[3] = {0.4f, 1.0f, 0.0f};
-    niknum pos1[3] = {2, 0, 10.0f};           // Positioned left of origin
+    niknum pos1[3] = {1, 0, 10.0f};           // Positioned left of origin
     niknum angles1[3] = {0, M_PI / 2, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;
@@ -33,6 +33,20 @@ int main() {
         1.0f,   // Density
         pos1,   
         angles1 
+    );
+
+    StaticBodyModel body4model;
+    body4model.conaffinity = 1;
+    body4model.contype = 1;
+    niknum size4[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
+    niknum pos4[3] = {2, 0, 5};           // Positioned left of origin
+    niknum angles4[3] = {0, 0, 0};            // No initial rotation
+    static_init(
+        &body4model,
+        nik3dsim::BODY_BOX,
+        size4,
+        pos4,
+        angles4
     );
 
     StaticBodyModel body2model;
@@ -73,6 +87,9 @@ int main() {
 
     int body3_idx = m.staticBodyCount++;
     m.staticBodies[body3_idx] = body3model;
+
+    int body4_idx = m.staticBodyCount++;
+    m.staticBodies[body4_idx] = body4model;
     
     // Initialize renderer
     Renderer renderer;

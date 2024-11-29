@@ -183,14 +183,14 @@ void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], con
 void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]) {
     // Define box vertices in local space
     niknum vertices[8][3];
-    vertices[0][0] = -size[0]/2; vertices[0][1] = -size[1]/2; vertices[0][2] = -size[2]/2;
-    vertices[1][0] =  size[0]/2; vertices[1][1] = -size[1]/2; vertices[1][2] = -size[2]/2;
-    vertices[2][0] =  size[0]/2; vertices[2][1] =  size[1]/2; vertices[2][2] = -size[2]/2;
-    vertices[3][0] = -size[0]/2; vertices[3][1] =  size[1]/2; vertices[3][2] = -size[2]/2;
-    vertices[4][0] = -size[0]/2; vertices[4][1] = -size[1]/2; vertices[4][2] =  size[2]/2;
-    vertices[5][0] =  size[0]/2; vertices[5][1] = -size[1]/2; vertices[5][2] =  size[2]/2;
-    vertices[6][0] =  size[0]/2; vertices[6][1] =  size[1]/2; vertices[6][2] =  size[2]/2;
-    vertices[7][0] = -size[0]/2; vertices[7][1] =  size[1]/2; vertices[7][2] =  size[2]/2;
+    vertices[0][0] = -size[0]; vertices[0][1] = -size[1]; vertices[0][2] = -size[2];
+    vertices[1][0] =  size[0]; vertices[1][1] = -size[1]; vertices[1][2] = -size[2];
+    vertices[2][0] =  size[0]; vertices[2][1] =  size[1]; vertices[2][2] = -size[2];
+    vertices[3][0] = -size[0]; vertices[3][1] =  size[1]; vertices[3][2] = -size[2];
+    vertices[4][0] = -size[0]; vertices[4][1] = -size[1]; vertices[4][2] =  size[2];
+    vertices[5][0] =  size[0]; vertices[5][1] = -size[1]; vertices[5][2] =  size[2];
+    vertices[6][0] =  size[0]; vertices[6][1] =  size[1]; vertices[6][2] =  size[2];
+    vertices[7][0] = -size[0]; vertices[7][1] =  size[1]; vertices[7][2] =  size[2];
     
     // Transform vertices to world space
     niknum rotated[3];

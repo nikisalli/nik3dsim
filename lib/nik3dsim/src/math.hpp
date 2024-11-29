@@ -69,7 +69,7 @@ namespace nik3dsim {
     }
 
     inline niknum vec3_normalize(niknum res[3], const niknum v[3]) {
-        niknum len = vec3_length(v);
+        niknum len = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         if (len > 0) {
             niknum invLen = 1.0f / len;
             res[0] = v[0] * invLen;

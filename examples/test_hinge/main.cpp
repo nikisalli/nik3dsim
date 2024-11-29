@@ -12,7 +12,7 @@ int main() {
     simulator_init(
         &m,
         gravity,
-        0.01f,      // Small timestep for stability
+        0.001f,      // Small timestep for stability
         1          // More iterations for constraint stability
     );
 
@@ -128,15 +128,15 @@ int main() {
     
     // Initialize renderer
     Renderer renderer;
-    if (!renderer_init(&renderer, 800, 600)) {
+    if (!renderer_init(&renderer, 2000, 1200)) {
         printf("Failed to initialize renderer\n");
         return 1;
     }
     
     // Set up camera to view the scene
     Camera camera;
-    niknum cam_pos[3] = {-5.0f, 7.0f, 5.0f};
-    niknum cam_target[3] = {0.0f, 0.0f, 0.0f};
+    niknum cam_pos[3] = {12.0f, 3.0f, -4.0f};
+    niknum cam_target[3] = {0.0f, 0.0f, -4.0f};
     niknum cam_up[3] = {0.0f, 0.0f, 1.0f};
     
     for(int i = 0; i < 3; i++) {
@@ -146,7 +146,7 @@ int main() {
     }
     
     camera.fov = 60.0f;
-    camera.aspectRatio = 800.0f / 600.0f;
+    camera.aspectRatio = 2000.0f / 1200.0f;
     camera.nearPlane = 0.1f;
     camera.farPlane = 100.0f;
     renderer_set_camera(&renderer, camera);
@@ -196,7 +196,7 @@ int main() {
         }
         
         Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        float deltaTime = (currentTime - lastTime) / 300.0f;
         lastTime = currentTime;
         accumulator += deltaTime;
         
