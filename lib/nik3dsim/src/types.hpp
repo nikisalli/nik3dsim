@@ -11,14 +11,15 @@ namespace nik3dsim {
     typedef enum {
         BODY_SPHERE,
         BODY_BOX,
+        BODY_AXIS_ALIGNED_BOX,
         BODY_CAPSULE,
         BODY_PLANE
     } BodyType;
 
     typedef struct {
-        size_t b0, b1;
-        niknum pos[3];
-        niknum n[3]; // pointing from contact to body0
+        uint32_t b0, b1;
+        niknum pos0[3];
+        niknum pos1[3];
         niknum depth;
         bool is_static;
     } Contact;
@@ -31,6 +32,9 @@ namespace nik3dsim {
 
         niknum invMass;
         niknum invInertia[3];
+
+        niknum contactCompliance;
+        niknum staticFrictionCoef;
     } RigidBodyModel;
 
     typedef struct {
@@ -42,8 +46,6 @@ namespace nik3dsim {
 
         niknum prevPos[3];
         niknum prevRot[4];
-
-        niknum cache[6];
     } RigidBodyData;
 
     typedef struct {
@@ -55,6 +57,9 @@ namespace nik3dsim {
         niknum pos[3];
         niknum rot[4];
         niknum invRot[4];
+
+        niknum contactCompliance;
+        niknum staticFrictionCoef;
     } StaticBodyModel;
 
     typedef struct DistanceConstraint {

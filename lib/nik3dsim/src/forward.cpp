@@ -1,3 +1,4 @@
+#include <SDL_opengl.h>
 #include <cmath>
 #include <stdio.h>
 #include <math.h>
@@ -16,6 +17,8 @@ namespace nik3dsim {
         vec3_copy(bd->prevPos, pos);
         vec3_zero(bd->vel);
         vec3_zero(bd->omega);
+
+        bm->contactCompliance = 0.0f;
         
         // Initialize rotation from Euler angles
         euler2quat(bd->rot, angles);
@@ -78,6 +81,16 @@ namespace nik3dsim {
         vec3_copy(bm->pos, pos);
         euler2quat(bm->rot, angles);
         quat_conj(bm->invRot, bm->rot);
+        bm->contactCompliance = 0.0f;
+    }
+
+    void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters) {
+        vec3_copy(m->gravity, gravity);
+        m->dt = timeStepSize;
+        m->posIters = numPosIters;
+        m->rigidBodyCount = 0;
+        m->positionalConstraintCount = 0;
+        m->hingeConstraintCount = 0;
     }
 
     void rigidbody_integrate(RigidBodyModel* bm, RigidBodyData* bd, niknum dt, niknum gravity[3]) {
@@ -140,11 +153,11 @@ namespace nik3dsim {
         niknum worldpos0[3], worldpos1[3], a0[3], a1[3], tmp[4];
 
         vec3_copy(worldpos0, constraint->r0);
-        vec3_quat_rotate(worldpos0, bd0->rot, worldpos0);
-        vec3_add(worldpos0, worldpos0, bd0->pos);
+        vec3_quat_rotate(a0, bd0->rot, worldpos0);
+        vec3_add(worldpos0, a0, bd0->pos);
         vec3_copy(worldpos1, constraint->r1);
-        vec3_quat_rotate(worldpos1, bd1->rot, worldpos1);
-        vec3_add(worldpos1, worldpos1, bd1->pos);
+        vec3_quat_rotate(a1, bd1->rot, worldpos1);
+        vec3_add(worldpos1, a1, bd1->pos);
 
         niknum n[3];
         vec3_sub(n, worldpos1, worldpos0);
@@ -178,8 +191,8 @@ namespace nik3dsim {
         vec3_sub(dom, worldpos0, bd0->pos);
         vec3_cross(tmp, dom, n);
         vec3_quat_rotate(dom, bd0->invRot, tmp);
-        vec3_mul(dom, dom, bm0->invInertia);
-        vec3_quat_rotate(dom, bd0->rot, dom);
+        vec3_mul(tmp, dom, bm0->invInertia);
+        vec3_quat_rotate(dom, bd0->rot, tmp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
         // Update rotation
@@ -196,8 +209,8 @@ namespace nik3dsim {
         vec3_sub(dom, worldpos1, bd1->pos);
         vec3_cross(tmp, dom, n);
         vec3_quat_rotate(dom, bd1->invRot, tmp);
-        vec3_mul(dom, dom, bm1->invInertia);
-        vec3_quat_rotate(dom, bd1->rot, dom);
+        vec3_mul(tmp, dom, bm1->invInertia);
+        vec3_quat_rotate(dom, bd1->rot, tmp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
         // Update rotation
@@ -260,44 +273,37 @@ namespace nik3dsim {
         
     }
 
-    void solve_contact_rigid_static(Contact* contact, RigidBodyModel* bm0, StaticBodyModel* bm1, RigidBodyData* bd0) {
-        // Update position
-        vec3_addscl(bd0->pos, bd0->pos, contact->n, -contact->depth);
-        
-        niknum r0[3], tmp[4];
-        vec3_sub(r0, contact->pos, bd0->pos);
-        
-        // Compute angular velocity correction
-        niknum dom[3], drot[4];
-        // Cross product of r × n gives rotation axis
-        vec3_cross(tmp, r0, contact->n);
-        // Transform to body space for inertia tensor application
+    void solve_contact_rigid_static(Contact* contact, RigidBodyModel* bm0, StaticBodyModel* bm1, RigidBodyData* bd0, niknum dt) {
+        niknum r0[3], p0[3], tmp[4], dp[3], n[3], drot[4], dom[4];
+        quat_conj(tmp, bd0->prevRot);
+        vec3_sub(p0, contact->pos0, bd0->prevPos);
+        vec3_quat_rotate(r0, tmp, p0);
+
+        vec3_quat_rotate(p0, bd0->rot, r0);
+        vec3_add(p0, p0, bd0->pos);
+
+        vec3_sub(dp, p0, contact->pos1);
+        vec3_sub(n, contact->pos1, contact->pos0);
+        vec3_normalize(n, n);
+        niknum depth = vec3_dot(dp, n);
+
+        vec3_addscl(bd0->pos, bd0->pos, n, -depth * 0.5f);
+
+        vec3_sub(r0, contact->pos0, bd0->pos);  // Assume pos is also the center of mass
+        vec3_scl(dp, n, -depth * 0.5f);
+        vec3_cross(tmp, r0, dp);
         vec3_quat_rotate(dom, bd0->invRot, tmp);
-        // Apply inverse inertia 
-        vec3_mul(dom, dom, bm0->invInertia);
-        // Transform back to world space
-        vec3_quat_rotate(dom, bd0->rot, dom);
-        
-        // Convert angular velocity to quaternion
+        vec3_mul(tmp, dom, bm0->invInertia);
+        vec3_quat_rotate(dom, bd0->rot, tmp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
-        
-        // Update rotation quaternion
+        // Update rotation
         quat_mul(tmp, drot, bd0->rot);
-        vec4_addscl(bd0->rot, bd0->rot, tmp, -contact->depth * 0.5f);
+        vec4_addscl(bd0->rot, bd0->rot, tmp, 0.5f);
         quat_normalize(bd0->rot, bd0->rot);
     }
 
-    void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters) {
-        vec3_copy(m->gravity, gravity);
-        m->dt = timeStepSize;
-        m->posIters = numPosIters;
-        m->rigidBodyCount = 0;
-        m->positionalConstraintCount = 0;
-        m->hingeConstraintCount = 0;
-    }
-
-    void simulator_step(nikModel* m, nikData* d) {
+    void simulator_step(nikModel* m, nikData* d) {        
         // Collide rigid bodies
         d->contactCount = 0;
         for (int i = 0; i < m->rigidBodyCount; i++) {
@@ -319,13 +325,13 @@ namespace nik3dsim {
                     contact.b1 = j;
                     contact.is_static = true;
                     if (contact.depth < 0.0f) {
-                        printf("contact depth: %.2f\n", contact.depth);
+                    // if (true) {
                         d->contacts[d->contactCount++] = contact;
                     }
                 }
             }
         }
-        
+
         // Integrate bodies
         for (int i = 0; i < m->rigidBodyCount; i++) {
             rigidbody_integrate(&m->bodies[i], &d->bodies[i], m->dt, m->gravity);
@@ -346,7 +352,7 @@ namespace nik3dsim {
             for (int i = 0; i < d->contactCount; i++) {
                 Contact* con = &d->contacts[i];
                 if (con->is_static) {
-                    solve_contact_rigid_static(con, &m->bodies[con->b0], &m->staticBodies[con->b1], &d->bodies[con->b0]);
+                    solve_contact_rigid_static(con, &m->bodies[con->b0], &m->staticBodies[con->b1], &d->bodies[con->b0], m->dt);
                 } else {
                     solve_contact_rigid_rigid(con, &m->bodies[con->b0], &m->bodies[con->b1], &d->bodies[con->b0], &d->bodies[con->b1], m->dt);
                 }

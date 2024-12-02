@@ -127,16 +127,16 @@ int main(int argc, char* argv[]) {
             glColor3f(1, 0, 0);
             glPointSize(5.0f);
             glBegin(GL_POINTS);
-            glVertex3f(contact.pos[0], contact.pos[1], contact.pos[2]);
+            glVertex3f(contact.pos0[0], contact.pos0[1], contact.pos0[2]);
             glEnd();
             
             // Draw normal
             glBegin(GL_LINES);
-            glVertex3f(contact.pos[0], contact.pos[1], contact.pos[2]);
+            glVertex3f(contact.pos0[0], contact.pos0[1], contact.pos0[2]);
             glVertex3f(
-                contact.pos[0] + contact.n[0] * contact.depth,
-                contact.pos[1] + contact.n[1] * contact.depth,
-                contact.pos[2] + contact.n[2] * contact.depth
+                contact.pos1[0],
+                contact.pos1[1],
+                contact.pos1[2]
             );
             glEnd();
         }

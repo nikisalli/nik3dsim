@@ -604,9 +604,13 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
 }
 
 void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data) {
+    float no_rot[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     switch (model.type) {
         case BODY_BOX:
             renderer_draw_wireframe_box(renderer, data.pos, model.size, data.rot);
+            break;
+        case BODY_AXIS_ALIGNED_BOX:
+            renderer_draw_wireframe_box(renderer, data.pos, model.size, no_rot);
             break;
         case BODY_SPHERE:
             renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0]);
@@ -623,9 +627,13 @@ void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData 
 }
 
 void renderer_draw_static(Renderer* renderer, StaticBodyModel model) {
+    float no_rot[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     switch (model.type) {
         case BODY_BOX:
             renderer_draw_wireframe_box(renderer, model.pos, model.size, model.rot);
+            break;
+        case BODY_AXIS_ALIGNED_BOX:
+            renderer_draw_wireframe_box(renderer, model.pos, model.size, no_rot);
             break;
         case BODY_SPHERE:
             renderer_draw_wireframe_sphere(renderer, model.pos, model.size[0]);

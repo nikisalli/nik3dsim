@@ -86,42 +86,49 @@ namespace nik3dsim {
     inline void vec3_quat_rotate(niknum res[3], const niknum q[4], const niknum v[3]) {
         // Using the formula: v' = q * v * q^(-1)
         // Optimized version that doesn't construct intermediate quaternions
-        // niknum x2  = q[0] * 2.0f;
-        // niknum y2  = q[1] * 2.0f;
-        // niknum z2  = q[2] * 2.0f;
-        // niknum xx2 = q[0] * x2;
-        // niknum xy2 = q[0] * y2;
-        // niknum xz2 = q[0] * z2;
-        // niknum yy2 = q[1] * y2;
-        // niknum yz2 = q[1] * z2;
-        // niknum zz2 = q[2] * z2;
-        // niknum wx2 = q[3] * x2;
-        // niknum wy2 = q[3] * y2;
-        // niknum wz2 = q[3] * z2;
-        // res[0] = v[0] * (1.0f - yy2 - zz2) + v[1] * (xy2 - wz2) + v[2] * (xz2 + wy2);
-        // res[1] = v[0] * (xy2 + wz2) + v[1] * (1.0f - xx2 - zz2) + v[2] * (yz2 - wx2);
-        // res[2] = v[0] * (xz2 - wy2) + v[1] * (yz2 + wx2) + v[2] * (1.0f - xx2 - yy2);
+        niknum x2  = q[0] * 2.0f;
+        niknum y2  = q[1] * 2.0f;
+        niknum z2  = q[2] * 2.0f;
+        niknum xx2 = q[0] * x2;
+        niknum xy2 = q[0] * y2;
+        niknum xz2 = q[0] * z2;
+        niknum yy2 = q[1] * y2;
+        niknum yz2 = q[1] * z2;
+        niknum zz2 = q[2] * z2;
+        niknum wx2 = q[3] * x2;
+        niknum wy2 = q[3] * y2;
+        niknum wz2 = q[3] * z2;
+        res[0] = v[0] * (1.0f - yy2 - zz2) + v[1] * (xy2 - wz2) + v[2] * (xz2 + wy2);
+        res[1] = v[0] * (xy2 + wz2) + v[1] * (1.0f - xx2 - zz2) + v[2] * (yz2 - wx2);
+        res[2] = v[0] * (xz2 - wy2) + v[1] * (yz2 + wx2) + v[2] * (1.0f - xx2 - yy2);
     
         // Compute t = 2 * cross(q.xyz, v)
-        niknum t[3];
-        t[0] = 2.0f * (q[1] * v[2] - q[2] * v[1]);
-        t[1] = 2.0f * (q[2] * v[0] - q[0] * v[2]);
-        t[2] = 2.0f * (q[0] * v[1] - q[1] * v[0]);
-        // Compute cross(q.xyz, t)
-        niknum qxt[3];
-        qxt[0] = q[1] * t[2] - q[2] * t[1];
-        qxt[1] = q[2] * t[0] - q[0] * t[2];
-        qxt[2] = q[0] * t[1] - q[1] * t[0];
-        // Combine all terms: v + qw * t + cross(q.xyz, t)
-        res[0] = v[0] + q[3] * t[0] + qxt[0];
-        res[1] = v[1] + q[3] * t[1] + qxt[1];
-        res[2] = v[2] + q[3] * t[2] + qxt[2];
+        // niknum t[3];
+        // t[0] = 2.0f * (q[1] * v[2] - q[2] * v[1]);
+        // t[1] = 2.0f * (q[2] * v[0] - q[0] * v[2]);
+        // t[2] = 2.0f * (q[0] * v[1] - q[1] * v[0]);
+        // // Compute cross(q.xyz, t)
+        // niknum qxt[3];
+        // qxt[0] = q[1] * t[2] - q[2] * t[1];
+        // qxt[1] = q[2] * t[0] - q[0] * t[2];
+        // qxt[2] = q[0] * t[1] - q[1] * t[0];
+        // // Combine all terms: v + qw * t + cross(q.xyz, t)
+        // res[0] = v[0] + q[3] * t[0] + qxt[0];
+        // res[1] = v[1] + q[3] * t[1] + qxt[1];
+        // res[2] = v[2] + q[3] * t[2] + qxt[2];
     }
 
     inline void vec3_mul(niknum res[3], const niknum a[3], const niknum b[3]) {
         res[0] = a[0] * b[0];
         res[1] = a[1] * b[1];
         res[2] = a[2] * b[2];
+    }
+
+    inline void vec3_swap(niknum a[3], niknum b[3]) {
+        niknum tmp[3];
+        vec3_copy(tmp, a);
+        vec3_copy(a, b);
+        vec3_copy(b, tmp);
     }
 
     // Vec4 operations

@@ -37,7 +37,7 @@ int main() {
     // Create second cube
     RigidBodyModel body2model;
     RigidBodyData body2data;
-    niknum size2[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
+    niknum size2[3] = {0.2f, 2.0f, 0.2f};     // Unit cube
     niknum pos2[3] = {0, 2, 0};            // Positioned right of origin
     niknum angles2[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
@@ -53,7 +53,7 @@ int main() {
     // Create third cube
     RigidBodyModel body3model;
     RigidBodyData body3data;
-    niknum size3[3] = {0.2f, 4.0f, 0.2f};     // Unit cube
+    niknum size3[3] = {0.2f, 2.0f, 0.2f};     // Unit cube
     niknum pos3[3] = {0, 6, 0};            // Positioned right of origin
     niknum angles3[3] = {0, 0, 0};            // No initial rotation
     rigidbody_init(
