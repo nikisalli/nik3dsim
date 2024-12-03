@@ -117,26 +117,27 @@ int main(int argc, char* argv[]) {
         drawSegment(_segStart, _segEnd);
         
         // Get collision information
-        Contact contact = collide_capsule_box(
+        Contact contacts[4];
+        int numcon = collide_capsule_box(contacts,
             capsulePos, capsuleRot, capsuleSize,
             boxPos, boxRot, boxInvRot, boxSize
         );
         
         // Draw collision normal and contact point
-        if (contact.depth > -capsuleSize[0]) {  // If collision detected
+        if (contacts[0].depth > -capsuleSize[0]) {  // If collision detected
             glColor3f(1, 0, 0);
             glPointSize(5.0f);
             glBegin(GL_POINTS);
-            glVertex3f(contact.pos0[0], contact.pos0[1], contact.pos0[2]);
+            glVertex3f(contacts[0].pos0[0], contacts[0].pos0[1], contacts[0].pos0[2]);
             glEnd();
             
             // Draw normal
             glBegin(GL_LINES);
-            glVertex3f(contact.pos0[0], contact.pos0[1], contact.pos0[2]);
+            glVertex3f(contacts[0].pos0[0], contacts[0].pos0[1], contacts[0].pos0[2]);
             glVertex3f(
-                contact.pos1[0],
-                contact.pos1[1],
-                contact.pos1[2]
+                contacts[0].pos1[0],
+                contacts[0].pos1[1],
+                contacts[0].pos1[2]
             );
             glEnd();
         }

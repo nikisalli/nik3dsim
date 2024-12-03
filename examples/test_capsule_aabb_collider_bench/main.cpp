@@ -71,11 +71,12 @@ int main() {
     
     for (int i = 0; i < NUM_ITERATIONS; i++) {
         const TestCase& test = testCases[i % NUM_TEST_CASES];
-        Contact contact = collide_capsule_aabb(
+        Contact contacts[4];
+        int numcon = collide_capsule_aabb(contacts,
             test.capsulePos, test.capsuleRot, test.capsuleSize,
             test.boxPos, test.boxSize
         );
-        (void)contact;
+        (void)contacts[0];
     }
     
     auto end = high_resolution_clock::now();

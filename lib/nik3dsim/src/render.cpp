@@ -174,13 +174,14 @@ SDL_Point renderer_world_to_screen(Renderer* renderer, const niknum point[3]) {
     return screen;
 }
 
-void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], const niknum end[3]) {
+void renderer_draw_wireframe_line(Renderer* renderer, const niknum start[3], const niknum end[3], float r, float g, float b) {
     SDL_Point p1 = renderer_world_to_screen(renderer, start);
     SDL_Point p2 = renderer_world_to_screen(renderer, end);
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, (Uint8)(r * 255), (Uint8)(g * 255), (Uint8)(b * 255), 255);
     SDL_RenderDrawLine(renderer->sdl_renderer, p1.x, p1.y, p2.x, p2.y);
 }
 
-void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]) {
+void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4], float r, float g, float b) {
     // Define box vertices in local space
     niknum vertices[8][3];
     vertices[0][0] = -size[0]; vertices[0][1] = -size[1]; vertices[0][2] = -size[2];
@@ -199,31 +200,27 @@ void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[
         vec3_add(vertices[i], pos, rotated);
     }
     
-    // Draw edges
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
-    
     // Bottom face
-    renderer_draw_wireframe_line(renderer, vertices[0], vertices[1]);
-    renderer_draw_wireframe_line(renderer, vertices[1], vertices[2]);
-    renderer_draw_wireframe_line(renderer, vertices[2], vertices[3]);
-    renderer_draw_wireframe_line(renderer, vertices[3], vertices[0]);
+    renderer_draw_wireframe_line(renderer, vertices[0], vertices[1], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[1], vertices[2], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[2], vertices[3], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[3], vertices[0], r, g, b);
     
     // Top face
-    renderer_draw_wireframe_line(renderer, vertices[4], vertices[5]);
-    renderer_draw_wireframe_line(renderer, vertices[5], vertices[6]);
-    renderer_draw_wireframe_line(renderer, vertices[6], vertices[7]);
-    renderer_draw_wireframe_line(renderer, vertices[7], vertices[4]);
+    renderer_draw_wireframe_line(renderer, vertices[4], vertices[5], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[5], vertices[6], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[6], vertices[7], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[7], vertices[4], r, g, b);
     
     // Connecting edges
-    renderer_draw_wireframe_line(renderer, vertices[0], vertices[4]);
-    renderer_draw_wireframe_line(renderer, vertices[1], vertices[5]);
-    renderer_draw_wireframe_line(renderer, vertices[2], vertices[6]);
-    renderer_draw_wireframe_line(renderer, vertices[3], vertices[7]);
+    renderer_draw_wireframe_line(renderer, vertices[0], vertices[4], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[1], vertices[5], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[2], vertices[6], r, g, b);
+    renderer_draw_wireframe_line(renderer, vertices[3], vertices[7], r, g, b);
 }
 
-void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius) {
+void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius, float r, float g, float b) {
     const int segments = 16;
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
     
     // Draw three circles in XY, YZ, and XZ planes
     niknum p1[3], p2[3];
@@ -239,7 +236,7 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
         p2[0] = pos[0] + radius * cosf(theta2);
         p2[1] = pos[1] + radius * sinf(theta2);
         p2[2] = pos[2];
-        renderer_draw_wireframe_line(renderer, p1, p2);
+        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
         
         // YZ plane circle
         p1[0] = pos[0];
@@ -249,7 +246,7 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
         p2[0] = pos[0];
         p2[1] = pos[1] + radius * cosf(theta2);
         p2[2] = pos[2] + radius * sinf(theta2);
-        renderer_draw_wireframe_line(renderer, p1, p2);
+        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
         
         // XZ plane circle
         p1[0] = pos[0] + radius * cosf(theta1);
@@ -259,15 +256,13 @@ void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float rad
         p2[0] = pos[0] + radius * cosf(theta2);
         p2[1] = pos[1];
         p2[2] = pos[2] + radius * sinf(theta2);
-        renderer_draw_wireframe_line(renderer, p1, p2);
+        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
     }
 }
 
-void renderer_draw_wireframe_plane(Renderer* renderer, niknum pos[3], niknum rot[4]) {
+void renderer_draw_wireframe_plane(Renderer* renderer, niknum pos[3], niknum rot[4], float r, float g, float b) {
     static const float SIZE = 10.0f;
     static const size_t NUM = 10;
-    
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
     
     // Create grid points in local space
     niknum local_point[3], world_point[3];
@@ -295,7 +290,7 @@ void renderer_draw_wireframe_plane(Renderer* renderer, niknum pos[3], niknum rot
         vec3_quat_rotate(world_point, rot, local_point);
         vec3_add(end, pos, world_point);
         
-        renderer_draw_wireframe_line(renderer, start, end);
+        renderer_draw_wireframe_line(renderer, start, end, r, g, b);
     }
     
     // Draw lines parallel to local Y axis
@@ -320,13 +315,12 @@ void renderer_draw_wireframe_plane(Renderer* renderer, niknum pos[3], niknum rot
         vec3_quat_rotate(world_point, rot, local_point);
         vec3_add(end, pos, world_point);
         
-        renderer_draw_wireframe_line(renderer, start, end);
+        renderer_draw_wireframe_line(renderer, start, end, r, g, b);
     }
 }
 
-void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4]) {
+void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum size[3], niknum rot[4], float r, float g, float b) {
     const int segments = 16;  // Same as sphere for consistency
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);  // Green color like other shapes
     
     // Extract dimensions
     float radius = size[0];     // Radius
@@ -371,7 +365,7 @@ void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum s
         vec3_add(world_top, pos, rotated_point);
         
         // Draw vertical line
-        renderer_draw_wireframe_line(renderer, world_bottom, world_top);
+        renderer_draw_wireframe_line(renderer, world_bottom, world_top, r, g, b);
     }
     
     // Draw circles at top and bottom of cylinder
@@ -399,7 +393,7 @@ void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum s
             vec3_quat_rotate(rotated_point, rot, p2);
             vec3_add(world_p2, pos, rotated_point);
             
-            renderer_draw_wireframe_line(renderer, world_p1, world_p2);
+            renderer_draw_wireframe_line(renderer, world_p1, world_p2, r, g, b);
         }
     }
     
@@ -438,7 +432,7 @@ void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum s
                 vec3_quat_rotate(rotated_point, rot, p2);
                 vec3_add(world_p2, pos, rotated_point);
                 
-                renderer_draw_wireframe_line(renderer, world_p1, world_p2);
+                renderer_draw_wireframe_line(renderer, world_p1, world_p2, r, g, b);
                 
                 // Draw latitude lines (connecting adjacent longitudes)
                 niknum p3[3] = {
@@ -451,13 +445,13 @@ void renderer_draw_wireframe_capsule(Renderer* renderer, niknum pos[3], niknum s
                 vec3_quat_rotate(rotated_point, rot, p3);
                 vec3_add(world_p3, pos, rotated_point);
                 
-                renderer_draw_wireframe_line(renderer, world_p1, world_p3);
+                renderer_draw_wireframe_line(renderer, world_p1, world_p3, r, g, b);
             }
         }
     }
 }
 
-void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir[3], float length, float head_length, float head_size) {
+void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir[3], float length, float head_length, float head_size, float r, float g, float b) {
     // Normalize direction vector and scale to desired length
     niknum normalized_dir[3];
     vec3_normalize(normalized_dir, dir);
@@ -468,8 +462,7 @@ void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir
     vec3_add(end, pos, normalized_dir);
     
     // Draw main shaft
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 255, 0, 255);  // Yellow color
-    renderer_draw_wireframe_line(renderer, pos, end);
+    renderer_draw_wireframe_line(renderer, pos, end, r, g, b);
     
     // Calculate arrow head points
     // First, find two vectors perpendicular to direction vector
@@ -521,10 +514,10 @@ void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir
     // Draw arrow head
     for (int i = 0; i < 4; i++) {
         // Draw lines from base points to tip
-        renderer_draw_wireframe_line(renderer, head_points[i], end);
+        renderer_draw_wireframe_line(renderer, head_points[i], end, r, g, b);
         
         // Draw base of arrow head
-        renderer_draw_wireframe_line(renderer, head_points[i], head_points[(i + 1) % 4]);
+        renderer_draw_wireframe_line(renderer, head_points[i], head_points[(i + 1) % 4], r, g, b);
     }
 }
 
@@ -603,43 +596,44 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
     }
 }
 
-void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data) {
+void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData data, float r, float g, float b) {
     float no_rot[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     switch (model.type) {
         case BODY_BOX:
-            renderer_draw_wireframe_box(renderer, data.pos, model.size, data.rot);
+            renderer_draw_wireframe_box(renderer, data.pos, model.size, data.rot, r, g, b);
             break;
         case BODY_AXIS_ALIGNED_BOX:
-            renderer_draw_wireframe_box(renderer, data.pos, model.size, no_rot);
+            renderer_draw_wireframe_box(renderer, data.pos, model.size, no_rot, r, g, b);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0]);
+            renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0], r, g, b);
             break;
         case BODY_PLANE:
-            renderer_draw_wireframe_plane(renderer, data.pos, data.rot);
+            renderer_draw_wireframe_plane(renderer, data.pos, data.rot, r, g, b);
             break;
         case BODY_CAPSULE:
-            renderer_draw_wireframe_capsule(renderer, data.pos, model.size, data.rot);
+            renderer_draw_wireframe_capsule(renderer, data.pos, model.size, data.rot, r, g, b);
             break;
         default:
             break;
     }
 }
 
-void renderer_draw_static(Renderer* renderer, StaticBodyModel model) {
+void renderer_draw_static(Renderer* renderer, StaticBodyModel model, float r, float g, float b) {
     float no_rot[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     switch (model.type) {
         case BODY_BOX:
-            renderer_draw_wireframe_box(renderer, model.pos, model.size, model.rot);
+            renderer_draw_wireframe_box(renderer, model.pos, model.size, model.rot, r, g, b);
             break;
         case BODY_AXIS_ALIGNED_BOX:
-            renderer_draw_wireframe_box(renderer, model.pos, model.size, no_rot);
+            renderer_draw_wireframe_box(renderer, model.pos, model.size, no_rot, r, g, b);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, model.pos, model.size[0]);
+            renderer_draw_wireframe_sphere(renderer, model.pos, model.size[0], r, g, b);
             break;
         case BODY_PLANE:
-            renderer_draw_wireframe_plane(renderer, model.pos, model.rot);
+            renderer_draw_wireframe_plane(renderer, model.pos, model.rot, r, g, b);
+            break;
         default:
             break;
     }
@@ -664,8 +658,7 @@ void renderer_draw_distance_constraint(Renderer* renderer, const DistanceConstra
     vec3_add(world_point1, world_point1, body1data->pos);
     
     // Draw red line between attachment points
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // Red color
-    renderer_draw_wireframe_line(renderer, world_point0, world_point1);
+    renderer_draw_wireframe_line(renderer, world_point0, world_point1, 1.0f, 0.0f, 0.0f);
 }
 
 void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* constraint, const RigidBodyModel* models, const RigidBodyData* data) {
@@ -685,9 +678,8 @@ void renderer_draw_hinge_constraint(Renderer* renderer, const HingeConstraint* c
     vec3_addto(a1, body1data->pos);
     
     // Draw green line between axis and body positions
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Blue color
-    renderer_draw_wireframe_line(renderer, body0data->pos, a0);
-    renderer_draw_wireframe_line(renderer, body1data->pos, a1);
+    renderer_draw_wireframe_line(renderer, body0data->pos, a0, 0.0f, 0.0f, 1.0f);
+    renderer_draw_wireframe_line(renderer, body1data->pos, a1, 0.0f, 0.0f, 1.0f);
 }
 
 void renderer_draw_constraints(Renderer* renderer, const nikModel* model, const nikData* data) {
@@ -702,7 +694,6 @@ void renderer_draw_constraints(Renderer* renderer, const nikModel* model, const 
     }
 }
 
-// Modify renderer_draw_simulation to include constraint drawing:
 void renderer_draw_simulation(Renderer* renderer, const nikModel* model, const nikData* data) {
     // Draw coordinate axes
     niknum origin[3] = {0, 0, 0};
@@ -710,29 +701,25 @@ void renderer_draw_simulation(Renderer* renderer, const nikModel* model, const n
     niknum y_axis[3] = {0, 1, 0};
     niknum z_axis[3] = {0, 0, 1};
     
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);  // X axis (red)
-    renderer_draw_wireframe_line(renderer, origin, x_axis);
+    // Draw coordinate axes lines with fixed colors
+    renderer_draw_wireframe_line(renderer, origin, x_axis, 1.0f, 0.0f, 0.0f);  // X axis (red)
+    renderer_draw_wireframe_line(renderer, origin, y_axis, 0.0f, 1.0f, 0.0f);  // Y axis (green)
+    renderer_draw_wireframe_line(renderer, origin, z_axis, 0.0f, 0.0f, 1.0f);  // Z axis (blue)
     
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);  // Y axis (green)
-    renderer_draw_wireframe_line(renderer, origin, y_axis);
-    
-    SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 0, 255, 255);  // Z axis (blue)
-    renderer_draw_wireframe_line(renderer, origin, z_axis);
-    
-    // Draw all bodies
+    // Draw all bodies (using white color)
     for (int i = 0; i < model->rigidBodyCount; i++) {
-        renderer_draw_body(renderer, model->bodies[i], data->bodies[i]);
+        renderer_draw_body(renderer, model->bodies[i], data->bodies[i], 0.0f, 1.0f, 0.0f);
     }
-
+    
+    // Draw all static bodies (using green color)
     for (int i = 0; i < model->staticBodyCount; i++) {
-        renderer_draw_static(renderer, model->staticBodies[i]);
+        renderer_draw_static(renderer, model->staticBodies[i], 0.0f, 1.0f, 0.0f);
     }
     
     // Draw all constraints
     renderer_draw_constraints(renderer, model, data);
     
     renderer_present(renderer);
-
     renderer_clear(renderer);
 }
 

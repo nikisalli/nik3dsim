@@ -195,7 +195,7 @@ int main() {
                 niknum dir[3], length;
                 vec3_sub(dir, contact->pos1, contact->pos0);
                 length = vec3_normalize(dir, dir);
-                renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f);
+                renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
                 // printf("contact: pos: %.2f %.2f %.2f n: %.2f %.2f %.2f depth: %.2f\n", contact->pos[0], contact->pos[1], contact->pos[2], contact->n[0], contact->n[1], contact->n[2], contact->depth);
             }
             accumulator -= m.dt;

@@ -8,7 +8,7 @@ int main() {
     // Create simulator with custom timestep and iterations
     nikModel m;
     nikData d;
-    niknum gravity[3] = {0, 0, -0.1};
+    niknum gravity[3] = {0, 0, -1};
     simulator_init(
         &m,
         gravity,
@@ -20,41 +20,28 @@ int main() {
     
     RigidBodyModel body1model;
     RigidBodyData body1data;
-    niknum size1[3] = {0.4f, 1.0f, 0.0f};
-    niknum pos1[3] = {1, 0, 10.0f};           // Positioned left of origin
+    niknum size1[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos1[3] = {1, 0, 1.0f};           // Positioned left of origin
     niknum angles1[3] = {0, M_PI / 2, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;
     rigidbody_init(
         &body1model,
         &body1data,
-        nik3dsim::BODY_CAPSULE,
+        nik3dsim::BODY_BOX,
         size1,  
         1.0f,   // Density
         pos1,   
         angles1 
     );
-
-    StaticBodyModel body4model;
-    body4model.conaffinity = 1;
-    body4model.contype = 1;
-    niknum size4[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
-    niknum pos4[3] = {2, 0, 5};           // Positioned left of origin
-    niknum angles4[3] = {0, 0, 0};            // No initial rotation
-    static_init(
-        &body4model,
-        nik3dsim::BODY_AXIS_ALIGNED_BOX,
-        size4,
-        pos4,
-        angles4
-    );
+    body1model.contactCompliance = 0.001f;
 
     StaticBodyModel body2model;
     body2model.conaffinity = 1;
     body2model.contype = 1;
     niknum size2[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
     niknum pos2[3] = {2, 0, 0};           // Positioned left of origin
-    niknum angles2[3] = {0, -M_PI * 0.4, 0};            // No initial rotation
+    niknum angles2[3] = {0, 0, 0};            // No initial rotation
     static_init(
         &body2model,
         nik3dsim::BODY_PLANE,
@@ -62,6 +49,7 @@ int main() {
         pos2,
         angles2
     );
+    body2model.contactCompliance = 0.001f;
 
     StaticBodyModel body3model;
     body3model.conaffinity = 1;
@@ -76,6 +64,7 @@ int main() {
         pos3,
         angles3
     );
+    body3model.contactCompliance = 0.001f;
 
     // Add bodies to simulator
     int body1_idx = m.rigidBodyCount++;
@@ -87,9 +76,6 @@ int main() {
 
     int body3_idx = m.staticBodyCount++;
     m.staticBodies[body3_idx] = body3model;
-
-    int body4_idx = m.staticBodyCount++;
-    m.staticBodies[body4_idx] = body4model;
     
     // Initialize renderer
     Renderer renderer;

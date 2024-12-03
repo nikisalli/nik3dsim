@@ -32,14 +32,15 @@ namespace nik3dsim {
             niknum mass;
             switch(type) {
                 case BODY_BOX:
-                    mass = density * size[0] * size[1] * size[2];
+                    mass = density * size[0] * size[1] * size[2] * 8.0f;
                     bm->invMass = 1.0f / mass;
-                    Ix = mass / 12.0f * (size[1] * size[1] + size[2] * size[2]);
-                    Iy = mass / 12.0f * (size[0] * size[0] + size[2] * size[2]);
-                    Iz = mass / 12.0f * (size[0] * size[0] + size[1] * size[1]);
+                    Ix = (mass / 12.0f) * (size[1] * size[1] * 4.0f + size[2] * size[2] * 4.0f);
+                    Iy = (mass / 12.0f) * (size[0] * size[0] * 4.0f + size[2] * size[2] * 4.0f);
+                    Iz = (mass / 12.0f) * (size[0] * size[0] * 4.0f + size[1] * size[1] * 4.0f);
                     bm->invInertia[0] = 1.0f / Ix;
                     bm->invInertia[1] = 1.0f / Iy;
                     bm->invInertia[2] = 1.0f / Iz;
+                    printf("mass: %f, Ix: %f, Iy: %f, Iz: %f invInertia: %f, %f, %f\n", mass, Ix, Iy, Iz, bm->invInertia[0], bm->invInertia[1], bm->invInertia[2]);
                     break;
                 case BODY_SPHERE:
                     mass = 4.0f/3.0f * M_PI * size[0] * size[0] * size[0] * density;
@@ -274,30 +275,55 @@ namespace nik3dsim {
     }
 
     void solve_contact_rigid_static(Contact* contact, RigidBodyModel* bm0, StaticBodyModel* bm1, RigidBodyData* bd0, niknum dt) {
-        niknum r0[3], p0[3], tmp[4], dp[3], n[3], drot[4], dom[4];
+        niknum r0[3], p0[3], tmp[4], n[3], dp[3];
+        niknum r_world[3];
+        
+        // Transform contact point to current position
         quat_conj(tmp, bd0->prevRot);
         vec3_sub(p0, contact->pos0, bd0->prevPos);
         vec3_quat_rotate(r0, tmp, p0);
-
         vec3_quat_rotate(p0, bd0->rot, r0);
         vec3_add(p0, p0, bd0->pos);
-
+        
+        // Calculate penetration
         vec3_sub(dp, p0, contact->pos1);
         vec3_sub(n, contact->pos1, contact->pos0);
         vec3_normalize(n, n);
         niknum depth = vec3_dot(dp, n);
-
-        vec3_addscl(bd0->pos, bd0->pos, n, -depth * 0.5f);
-
-        vec3_sub(r0, contact->pos0, bd0->pos);  // Assume pos is also the center of mass
-        vec3_scl(dp, n, -depth * 0.5f);
-        vec3_cross(tmp, r0, dp);
-        vec3_quat_rotate(dom, bd0->invRot, tmp);
-        vec3_mul(tmp, dom, bm0->invInertia);
-        vec3_quat_rotate(dom, bd0->rot, tmp);
+        
+        // Calculate r vector from center of mass to contact point
+        vec3_sub(r0, contact->pos0, bd0->pos);
+        
+        // Calculate r × n (in world space)
+        niknum r_cross_n[3];
+        vec3_cross(r_cross_n, r0, n);
+        
+        // Transform r × n to body space, apply inverse inertia, transform back
+        niknum temp[3];
+        vec3_quat_rotate(temp, bd0->invRot, r_cross_n);
+        vec3_mul(tmp, temp, bm0->invInertia);
+        vec3_quat_rotate(temp, bd0->rot, tmp);
+        
+        // Calculate effective mass: 1/(1/m + (r × n)·I⁻¹·(r × n))
+        niknum angular_term = vec3_dot(r_cross_n, temp);
+        niknum eff_mass = bm0->invMass + angular_term;
+        
+        // Calculate impulse magnitude
+        niknum alpha = (bm0->contactCompliance + bm1->contactCompliance) / (dt * dt * 2.0);
+        niknum j = -depth / (eff_mass + alpha);
+        
+        // Apply linear impulse
+        vec3_addscl(bd0->pos, bd0->pos, n, j * bm0->invMass);
+        
+        // Calculate and apply angular impulse
+        niknum drot[4], dom[3];
+        vec3_scl(temp, r_cross_n, j); // r × (j·n)
+        vec3_quat_rotate(dom, bd0->invRot, temp);
+        vec3_mul(temp, dom, bm0->invInertia);
+        vec3_quat_rotate(dom, bd0->rot, temp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
-        // Update rotation
+        // Update rotation using infinitesimal rotation approximation
         quat_mul(tmp, drot, bd0->rot);
         vec4_addscl(bd0->rot, bd0->rot, tmp, 0.5f);
         quat_normalize(bd0->rot, bd0->rot);
@@ -320,13 +346,17 @@ namespace nik3dsim {
             for (int j = 0; j < m->staticBodyCount; j++) {
                 StaticBodyModel* bm1 = &m->staticBodies[j];
                 if ((bm0->contype & bm1->conaffinity) || (bm1->contype & bm0->conaffinity)) {
-                    Contact contact = collide_rigid_static(bm0, bm1, bd0);
-                    contact.b0 = i;
-                    contact.b1 = j;
-                    contact.is_static = true;
-                    if (contact.depth < 0.0f) {
-                    // if (true) {
-                        d->contacts[d->contactCount++] = contact;
+                    Contact contacts[4];
+                    int numcon = collide_rigid_static(contacts,bm0, bm1, bd0);
+
+                    for (int k = 0; k < numcon; k++) {
+                        if (contacts[k].depth < 0.0f) {
+                        // if (true) {
+                            contacts[k].b0 = i;
+                            contacts[k].b1 = j;
+                            contacts[k].is_static = true;
+                            d->contacts[d->contactCount++] = contacts[k];
+                        }
                     }
                 }
             }
