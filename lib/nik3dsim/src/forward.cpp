@@ -18,7 +18,8 @@ namespace nik3dsim {
         vec3_zero(bd->vel);
         vec3_zero(bd->omega);
 
-        bm->contactCompliance = 0.0f;
+        bm->contactCompliance = 0.001f;
+        bm->frictionCoef = 0.0f;
         
         // Initialize rotation from Euler angles
         euler2quat(bd->rot, angles);
@@ -82,7 +83,8 @@ namespace nik3dsim {
         vec3_copy(bm->pos, pos);
         euler2quat(bm->rot, angles);
         quat_conj(bm->invRot, bm->rot);
-        bm->contactCompliance = 0.0f;
+        bm->contactCompliance = 0.001f;
+        bm->frictionCoef = 0.0f;
     }
 
     void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters) {
@@ -310,14 +312,14 @@ namespace nik3dsim {
         
         // Calculate impulse magnitude
         niknum alpha = (bm0->contactCompliance + bm1->contactCompliance) / (dt * dt * 2.0);
-        niknum j = -depth / (eff_mass + alpha);
+        niknum lamn = -depth / (eff_mass + alpha);
         
         // Apply linear impulse
-        vec3_addscl(bd0->pos, bd0->pos, n, j * bm0->invMass);
+        vec3_addscl(bd0->pos, bd0->pos, n, lamn * bm0->invMass);
         
         // Calculate and apply angular impulse
         niknum drot[4], dom[3];
-        vec3_scl(temp, r_cross_n, j); // r × (j·n)
+        vec3_scl(temp, r_cross_n, lamn); // r × (j·n)
         vec3_quat_rotate(dom, bd0->invRot, temp);
         vec3_mul(temp, dom, bm0->invInertia);
         vec3_quat_rotate(dom, bd0->rot, temp);
@@ -326,6 +328,33 @@ namespace nik3dsim {
         // Update rotation using infinitesimal rotation approximation
         quat_mul(tmp, drot, bd0->rot);
         vec4_addscl(bd0->rot, bd0->rot, tmp, 0.5f);
+        quat_normalize(bd0->rot, bd0->rot);
+
+        // Static friction
+        vec3_sub(dp, p0, contact->pos0);
+        vec3_scl(tmp, n, vec3_dot(dp, n));
+        vec3_sub(dp, dp, tmp);
+        
+        niknum lamt = vec3_length(dp);
+        niknum friction = fmaxf(bm0->frictionCoef, bm1->frictionCoef);
+        niknum applyfriction = lamt < friction * lamn;
+        vec3_addscl(bd0->pos, bd0->pos, dp, -applyfriction);
+        // Get current velocity from prevPos and prevRot and adjust current pos to project velocity on contact normal
+        vec3_sub(dp, bd0->pos, bd0->prevPos);
+        vec3_scl(dp, n, vec3_dot(dp, n));
+        vec3_add(tmp, dp, bd0->prevPos);
+        vec3_sub(dp, tmp, bd0->pos);
+        vec3_addscl(bd0->pos, bd0->pos, dp, applyfriction);
+        // Also remove rotations around contact normal
+        niknum twist[4], dq[4];
+        quat_conj(tmp, bd0->prevRot);  // tmp = prev.conj
+        quat_mul(dq, bd0->rot, tmp);  // dq = current * prev.conj
+        quat_get_twist(twist, dq, n);  // get twist component of relative rotation
+        quat_conj(twist, twist);  // conjugate to remove it
+        quat_mul(tmp, dq, twist);  // tmp = dq * twist.conj
+        vec4_sub(tmp, tmp, dq);
+        vec4_addscl(dq, dq, tmp, applyfriction);
+        quat_mul(bd0->rot, dq, bd0->prevRot);  // current = dq * prev
         quat_normalize(bd0->rot, bd0->rot);
     }
 

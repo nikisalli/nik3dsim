@@ -294,9 +294,12 @@ namespace nik3dsim {
         };
         
         // Transform vertices to world space
+        niknum cache[9];
+        quat2rotmat(brot, cache);
         for(int i = 0; i < 8; i++) {
             niknum rotated[3];
-            vec3_quat_rotate(rotated, brot, localVerts[i]);
+            // vec3_quat_rotate(rotated, brot, localVerts[i]);
+            vec3_matmul(rotated, cache, localVerts[i]);
             vec3_add(vertices[i], rotated, bpos);
         }
         
@@ -325,18 +328,6 @@ namespace nik3dsim {
                 numContacts++;
             }
         }
-
-        // Sort contacts by penetration depth if you want deepest first
-        // for(int i = 0; i < numContacts - 1; i++) {
-        //     for(int j = i + 1; j < numContacts; j++) {
-        //         if(fabsf(contacts[j].depth) > fabsf(contacts[i].depth)) {
-        //             // Swap contacts
-        //             Contact temp = contacts[i];
-        //             contacts[i] = contacts[j];
-        //             contacts[j] = temp;
-        //         }
-        //     }
-        // }
         
         return numContacts;
     }

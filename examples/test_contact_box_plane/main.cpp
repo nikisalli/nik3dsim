@@ -41,7 +41,7 @@ int main() {
     body2model.contype = 1;
     niknum size2[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
     niknum pos2[3] = {2, 0, 0};           // Positioned left of origin
-    niknum angles2[3] = {0, 0, 0};            // No initial rotation
+    niknum angles2[3] = {0, -M_PI * 0.4, 0};            // No initial rotation
     static_init(
         &body2model,
         nik3dsim::BODY_PLANE,
@@ -153,19 +153,19 @@ int main() {
         accumulator += deltaTime;
         while (accumulator >= m.dt) {
             simulator_step(&m, &d);
-            for (int i = 0; i < d.contactCount; i++) {
-                Contact* contact = &d.contacts[i];
-                niknum dir[3], length;
-                vec3_sub(dir, contact->pos1, contact->pos0);
-                length = vec3_normalize(dir, dir);
-                renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
-                renderer_draw_wireframe_sphere(&renderer, contact->pos0, 0.1f, 1.0f, 0.0f, 0.0f);
-                renderer_draw_wireframe_sphere(&renderer, contact->pos1, 0.1f, 0.0f, 0.0f, 1.0f);
-                printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
-            }
             accumulator -= m.dt;
         }
 
+        for (int i = 0; i < d.contactCount; i++) {
+            Contact* contact = &d.contacts[i];
+            niknum dir[3], length;
+            vec3_sub(dir, contact->pos1, contact->pos0);
+            length = vec3_normalize(dir, dir);
+            renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
+            renderer_draw_wireframe_sphere(&renderer, contact->pos0, 0.1f, 1.0f, 0.0f, 0.0f);
+            renderer_draw_wireframe_sphere(&renderer, contact->pos1, 0.1f, 0.0f, 0.0f, 1.0f);
+            printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
+        }
         
         renderer_draw_simulation(&renderer, &m, &d);
         SDL_Delay(1);

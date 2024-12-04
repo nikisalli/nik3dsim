@@ -118,6 +118,38 @@ namespace nik3dsim {
         // res[2] = v[2] + q[3] * t[2] + qxt[2];
     }
 
+    inline void quat2rotmat(const niknum q[4], niknum m[9]) {
+        niknum x2 = q[0] * 2.0f;
+        niknum y2 = q[1] * 2.0f;
+        niknum z2 = q[2] * 2.0f;
+        
+        // Diagonal terms
+        m[0] = 1.0f - (q[1] * y2 + q[2] * z2);  // 1 - yy2 - zz2
+        m[4] = 1.0f - (q[0] * x2 + q[2] * z2);  // 1 - xx2 - zz2
+        m[8] = 1.0f - (q[0] * x2 + q[1] * y2);  // 1 - xx2 - yy2
+        
+        // Off-diagonal terms
+        niknum xy2 = q[0] * y2;
+        niknum xz2 = q[0] * z2;
+        niknum yz2 = q[1] * z2;
+        niknum wx2 = q[3] * x2;
+        niknum wy2 = q[3] * y2;
+        niknum wz2 = q[3] * z2;
+        
+        m[1] = xy2 - wz2;
+        m[2] = xz2 + wy2;
+        m[3] = xy2 + wz2;
+        m[5] = yz2 - wx2;
+        m[6] = xz2 - wy2;
+        m[7] = yz2 + wx2;
+    }
+
+    inline void vec3_matmul(niknum res[3], const niknum m[9], const niknum v[3]) {
+        res[0] = m[0] * v[0] + m[1] * v[1] + m[2] * v[2];
+        res[1] = m[3] * v[0] + m[4] * v[1] + m[5] * v[2];
+        res[2] = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
+    }
+
     inline void vec3_mul(niknum res[3], const niknum a[3], const niknum b[3]) {
         res[0] = a[0] * b[0];
         res[1] = a[1] * b[1];
@@ -227,6 +259,26 @@ namespace nik3dsim {
         res[1] = -q[1];  // -y
         res[2] = -q[2];  // -z
         res[3] = q[3];   // w
+    }
+
+    inline void quat_get_twist(niknum result[4], const niknum q[4], const niknum direction[3]) {
+        niknum dot_prod = direction[0] * q[0] + direction[1] * q[1] + direction[2] * q[2];
+        niknum proj[3];
+
+        vec3_scl(proj, direction, dot_prod);
+        result[0] = proj[0];
+        result[1] = proj[1];
+        result[2] = proj[2];
+        result[3] = q[3];
+        
+        quat_normalize(result, result);
+        
+        if (dot_prod < 0.0f) {
+            result[0] = -result[0];
+            result[1] = -result[1];
+            result[2] = -result[2];
+            result[3] = -result[3];
+        }
     }
 
     inline void euler2quat(niknum res[4], const niknum euler[3]) {

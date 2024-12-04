@@ -34,7 +34,7 @@ namespace nik3dsim {
         niknum invInertia[3];
 
         niknum contactCompliance;
-        niknum staticFrictionCoef;
+        niknum frictionCoef;
     } RigidBodyModel;
 
     typedef struct {
@@ -59,7 +59,7 @@ namespace nik3dsim {
         niknum invRot[4];
 
         niknum contactCompliance;
-        niknum staticFrictionCoef;
+        niknum frictionCoef;
     } StaticBodyModel;
 
     typedef struct DistanceConstraint {

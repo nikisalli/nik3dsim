@@ -20,41 +20,48 @@ int main() {
     
     RigidBodyModel body1model;
     RigidBodyData body1data;
-    niknum size1[3] = {0.4f, 1.0f, 0.0f};
-    niknum pos1[3] = {1, 0, 10.0f};           // Positioned left of origin
+    niknum size1[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos1[3] = {1, 0, 0.5f};           // Positioned left of origin
     niknum angles1[3] = {0, M_PI / 2, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;
     rigidbody_init(
         &body1model,
         &body1data,
-        nik3dsim::BODY_CAPSULE,
+        nik3dsim::BODY_BOX,
         size1,  
         1.0f,   // Density
         pos1,   
         angles1 
     );
+    body1model.contactCompliance = 0.001f;
+    body1model.frictionCoef = 1000.0f;
 
-    StaticBodyModel body4model;
-    body4model.conaffinity = 1;
-    body4model.contype = 1;
-    niknum size4[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
-    niknum pos4[3] = {2, 0, 5};           // Positioned left of origin
-    niknum angles4[3] = {0, 0, 0};            // No initial rotation
-    static_init(
-        &body4model,
-        nik3dsim::BODY_AXIS_ALIGNED_BOX,
-        size4,
-        pos4,
-        angles4
+    RigidBodyModel body3model;
+    RigidBodyData body3data;
+    niknum size3[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos3[3] = {1, 3, 0.5f};           // Positioned left of origin
+    niknum angles3[3] = {0, M_PI / 2, 0};            // No initial rotation
+    body3model.conaffinity = 1;
+    body3model.contype = 1;
+    rigidbody_init(
+        &body3model,
+        &body3data,
+        nik3dsim::BODY_BOX,
+        size3,  
+        1.0f,   // Density
+        pos3,   
+        angles3 
     );
+    body3model.contactCompliance = 0.001f;
+    body3model.frictionCoef = 3.0f;
 
     StaticBodyModel body2model;
     body2model.conaffinity = 1;
     body2model.contype = 1;
     niknum size2[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
     niknum pos2[3] = {2, 0, 0};           // Positioned left of origin
-    niknum angles2[3] = {0, -M_PI * 0.4, 0};            // No initial rotation
+    niknum angles2[3] = {0, -M_PI * 0.02, 0};            // No initial rotation
     static_init(
         &body2model,
         nik3dsim::BODY_PLANE,
@@ -62,34 +69,19 @@ int main() {
         pos2,
         angles2
     );
-
-    StaticBodyModel body3model;
-    body3model.conaffinity = 1;
-    body3model.contype = 1;
-    niknum size3[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
-    niknum pos3[3] = {-2, 0, 0};           // Positioned left of origin
-    niknum angles3[3] = {0, M_PI * 0.4, 0};            // No initial rotation
-    static_init(
-        &body3model,
-        nik3dsim::BODY_PLANE,
-        size3,
-        pos3,
-        angles3
-    );
+    body2model.contactCompliance = 0.001f;
 
     // Add bodies to simulator
     int body1_idx = m.rigidBodyCount++;
     m.bodies[body1_idx] = body1model;
     d.bodies[body1_idx] = body1data;
 
+    int body3_idx = m.rigidBodyCount++;
+    m.bodies[body3_idx] = body3model;
+    d.bodies[body3_idx] = body3data;
+
     int body2_idx = m.staticBodyCount++;
     m.staticBodies[body2_idx] = body2model;
-
-    int body3_idx = m.staticBodyCount++;
-    m.staticBodies[body3_idx] = body3model;
-
-    int body4_idx = m.staticBodyCount++;
-    m.staticBodies[body4_idx] = body4model;
     
     // Initialize renderer
     Renderer renderer;
@@ -161,23 +153,25 @@ int main() {
         }
         
         Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 300.0f;
+        float deltaTime = (currentTime - lastTime) / 1.0f;
         lastTime = currentTime;
         static float accumulator = 0.0f;
         accumulator += deltaTime;
         while (accumulator >= m.dt) {
             simulator_step(&m, &d);
-            for (int i = 0; i < d.contactCount; i++) {
-                Contact* contact = &d.contacts[i];
-                niknum dir[3], length;
-                vec3_sub(dir, contact->pos1, contact->pos0);
-                length = vec3_normalize(dir, dir);
-                renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
-                printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
-            }
             accumulator -= m.dt;
         }
 
+        for (int i = 0; i < d.contactCount; i++) {
+            Contact* contact = &d.contacts[i];
+            niknum dir[3], length;
+            vec3_sub(dir, contact->pos1, contact->pos0);
+            length = vec3_normalize(dir, dir);
+            renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
+            renderer_draw_wireframe_sphere(&renderer, contact->pos0, 0.1f, 1.0f, 0.0f, 0.0f);
+            renderer_draw_wireframe_sphere(&renderer, contact->pos1, 0.1f, 0.0f, 0.0f, 1.0f);
+            // printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
+        }
         
         renderer_draw_simulation(&renderer, &m, &d);
         SDL_Delay(1);
