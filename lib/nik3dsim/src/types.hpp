@@ -40,7 +40,6 @@ namespace nik3dsim {
     typedef struct {
         niknum pos[3];
         niknum rot[4];
-        niknum invRot[4];
         niknum vel[3];
         niknum omega[3];
 
@@ -56,7 +55,6 @@ namespace nik3dsim {
 
         niknum pos[3];
         niknum rot[4];
-        niknum invRot[4];
 
         niknum contactCompliance;
         niknum frictionCoef;

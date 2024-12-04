@@ -23,7 +23,6 @@ namespace nik3dsim {
         
         // Initialize rotation from Euler angles
         euler2quat(bd->rot, angles);
-        quat_conj(bd->invRot, bd->rot);
         vec4_copy(bd->prevRot, bd->rot);
 
         niknum Ix, Iy, Iz;
@@ -82,7 +81,6 @@ namespace nik3dsim {
         vec3_copy(bm->size, size);
         vec3_copy(bm->pos, pos);
         euler2quat(bm->rot, angles);
-        quat_conj(bm->invRot, bm->rot);
         bm->contactCompliance = 0.001f;
         bm->frictionCoef = 0.0f;
     }
@@ -153,13 +151,18 @@ namespace nik3dsim {
     }
 
     void solve_positional_constraint(RigidBodyModel* bm0, RigidBodyModel* bm1, RigidBodyData* bd0, RigidBodyData* bd1, DistanceConstraint* constraint, niknum dt) {
-        niknum worldpos0[3], worldpos1[3], a0[3], a1[3], tmp[4];
+        niknum worldpos0[3], worldpos1[3], a0[3], a1[3], tmp[4], rot0[9], rot1[9];
+
+        quat2rotmat(bd0->rot, rot0);
+        quat2rotmat(bd1->rot, rot1);
 
         vec3_copy(worldpos0, constraint->r0);
-        vec3_quat_rotate(a0, bd0->rot, worldpos0);
+        // vec3_quat_rotate(a0, bd0->rot, worldpos0);
+        vec3_matmul(a0, rot0, worldpos0);
         vec3_add(worldpos0, a0, bd0->pos);
         vec3_copy(worldpos1, constraint->r1);
-        vec3_quat_rotate(a1, bd1->rot, worldpos1);
+        // vec3_quat_rotate(a1, bd1->rot, worldpos1);
+        vec3_matmul(a1, rot1, worldpos1);
         vec3_add(worldpos1, a1, bd1->pos);
 
         niknum n[3];
@@ -169,10 +172,12 @@ namespace nik3dsim {
         // Compute inverse masses
         vec3_sub(a0, worldpos0, bd0->pos);
         vec3_cross(tmp, a0, n);
-        vec3_quat_rotate(a0, bd0->invRot, tmp);
+        // vec3_quat_rotate(a0, bd0->invRot, tmp);
+        vec3_matmul_t(a0, rot0, tmp);
         vec3_sub(a1, worldpos1, bd1->pos);
         vec3_cross(tmp, a1, n);
-        vec3_quat_rotate(a1, bd1->invRot, tmp);
+        // vec3_quat_rotate(a1, bd1->invRot, tmp);
+        vec3_matmul_t(a1, rot1, tmp);
 
         niknum w = a0[0] * a0[0] * bm0->invInertia[0] + 
                    a0[1] * a0[1] * bm0->invInertia[1] +
@@ -193,9 +198,11 @@ namespace nik3dsim {
         vec3_copy(dom, n);
         vec3_sub(dom, worldpos0, bd0->pos);
         vec3_cross(tmp, dom, n);
-        vec3_quat_rotate(dom, bd0->invRot, tmp);
+        // vec3_quat_rotate(dom, bd0->invRot, tmp);
+        vec3_matmul_t(dom, rot0, tmp);
         vec3_mul(tmp, dom, bm0->invInertia);
-        vec3_quat_rotate(dom, bd0->rot, tmp);
+        // vec3_quat_rotate(dom, bd0->rot, tmp);
+        vec3_matmul(dom, rot0, tmp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
         // Update rotation
@@ -211,9 +218,11 @@ namespace nik3dsim {
         vec3_copy(dom, n);
         vec3_sub(dom, worldpos1, bd1->pos);
         vec3_cross(tmp, dom, n);
-        vec3_quat_rotate(dom, bd1->invRot, tmp);
+        // vec3_quat_rotate(dom, bd1->invRot, tmp);
+        vec3_matmul_t(dom, rot1, tmp);
         vec3_mul(tmp, dom, bm1->invInertia);
-        vec3_quat_rotate(dom, bd1->rot, tmp);
+        // vec3_quat_rotate(dom, bd1->rot, tmp);
+        vec3_matmul(dom, rot1, tmp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
         // Update rotation
@@ -277,14 +286,17 @@ namespace nik3dsim {
     }
 
     void solve_contact_rigid_static(Contact* contact, RigidBodyModel* bm0, StaticBodyModel* bm1, RigidBodyData* bd0, niknum dt) {
-        niknum r0[3], p0[3], tmp[4], n[3], dp[3];
+        niknum r0[3], p0[3], tmp[4], n[3], dp[3], rot0[9];
         niknum r_world[3];
+
+        quat2rotmat(bd0->rot, rot0);
         
         // Transform contact point to current position
         quat_conj(tmp, bd0->prevRot);
         vec3_sub(p0, contact->pos0, bd0->prevPos);
         vec3_quat_rotate(r0, tmp, p0);
-        vec3_quat_rotate(p0, bd0->rot, r0);
+        // vec3_quat_rotate(p0, bd0->rot, r0);
+        vec3_matmul(p0, rot0, r0);
         vec3_add(p0, p0, bd0->pos);
         
         // Calculate penetration
@@ -302,9 +314,11 @@ namespace nik3dsim {
         
         // Transform r × n to body space, apply inverse inertia, transform back
         niknum temp[3];
-        vec3_quat_rotate(temp, bd0->invRot, r_cross_n);
+        // vec3_quat_rotate(temp, bd0->invRot, r_cross_n);
+        vec3_matmul_t(temp, rot0, r_cross_n);
         vec3_mul(tmp, temp, bm0->invInertia);
-        vec3_quat_rotate(temp, bd0->rot, tmp);
+        // vec3_quat_rotate(temp, bd0->rot, tmp);
+        vec3_matmul(temp, rot0, tmp);
         
         // Calculate effective mass: 1/(1/m + (r × n)·I⁻¹·(r × n))
         niknum angular_term = vec3_dot(r_cross_n, temp);
@@ -320,9 +334,11 @@ namespace nik3dsim {
         // Calculate and apply angular impulse
         niknum drot[4], dom[3];
         vec3_scl(temp, r_cross_n, lamn); // r × (j·n)
-        vec3_quat_rotate(dom, bd0->invRot, temp);
+        // vec3_quat_rotate(dom, bd0->invRot, temp);
+        vec3_matmul_t(dom, rot0, temp);
         vec3_mul(temp, dom, bm0->invInertia);
-        vec3_quat_rotate(dom, bd0->rot, temp);
+        // vec3_quat_rotate(dom, bd0->rot, temp);
+        vec3_matmul(dom, rot0, temp);
         vec4_zero(drot);
         vec3_copy(drot, dom);
         // Update rotation using infinitesimal rotation approximation

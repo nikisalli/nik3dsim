@@ -13,7 +13,6 @@ struct TestCase {
     niknum capsuleSize[3];
     niknum boxPos[3];
     niknum boxRot[4];
-    niknum boxInvRot[4];
     niknum boxSize[3];
 };
 
@@ -67,11 +66,6 @@ int main() {
         
         generateRandomQuaternion(test.capsuleRot);
         generateRandomQuaternion(test.boxRot);
-        
-        test.boxInvRot[0] = -test.boxRot[0];
-        test.boxInvRot[1] = -test.boxRot[1];
-        test.boxInvRot[2] = -test.boxRot[2];
-        test.boxInvRot[3] = test.boxRot[3];
     }
     
     // Run the collision tests
@@ -82,7 +76,7 @@ int main() {
         Contact contacts[4];
         int numcon = collide_capsule_box(contacts,
             test.capsulePos, test.capsuleRot, test.capsuleSize,
-            test.boxPos, test.boxRot, test.boxInvRot, test.boxSize
+            test.boxPos, test.boxRot, test.boxSize
         );
         (void)contacts[0];
     }

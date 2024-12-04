@@ -12,7 +12,6 @@ struct TestCase {
     niknum planeInvRot[4];
     niknum boxPos[3];
     niknum boxRot[4];
-    niknum boxInvRot[4];
     niknum boxSize[3];
 };
 
@@ -67,11 +66,6 @@ int main() {
         test.planeInvRot[1] = -test.planeRot[1];
         test.planeInvRot[2] = -test.planeRot[2];
         test.planeInvRot[3] = test.planeRot[3];
-
-        test.boxInvRot[0] = -test.boxRot[0];
-        test.boxInvRot[1] = -test.boxRot[1];
-        test.boxInvRot[2] = -test.boxRot[2];
-        test.boxInvRot[3] = test.boxRot[3];
     }
 
     // Run the collision tests
@@ -81,7 +75,7 @@ int main() {
         Contact contacts[8];
         int numcon = collide_box_plane(contacts,
             test.boxPos, test.boxRot, test.boxSize,
-            test.planePos, test.planeRot, test.boxInvRot);
+            test.planePos, test.planeRot);
         (void)contacts[0];
     }
     auto end = high_resolution_clock::now();

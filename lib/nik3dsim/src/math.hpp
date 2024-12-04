@@ -118,6 +118,26 @@ namespace nik3dsim {
         // res[2] = v[2] + q[3] * t[2] + qxt[2];
     }
 
+    inline void vec3_quat_rotate_inverse(niknum res[3], const niknum q[4], const niknum v[3]) {
+        // Using the formula: v' = q^(-1) * v * q
+        // Which is equivalent to negating x,y,z of q in the original formula
+        niknum x2 = q[0] * 2.0f;
+        niknum y2 = q[1] * 2.0f;
+        niknum z2 = q[2] * 2.0f;
+        niknum xx2 = q[0] * x2;
+        niknum xy2 = q[0] * y2;
+        niknum xz2 = q[0] * z2;
+        niknum yy2 = q[1] * y2;
+        niknum yz2 = q[1] * z2;
+        niknum zz2 = q[2] * z2;
+        niknum wx2 = q[3] * x2;
+        niknum wy2 = q[3] * y2;
+        niknum wz2 = q[3] * z2;
+        res[0] = v[0] * (1.0f - yy2 - zz2) + v[1] * (xy2 + wz2) + v[2] * (xz2 - wy2);
+        res[1] = v[0] * (xy2 - wz2) + v[1] * (1.0f - xx2 - zz2) + v[2] * (yz2 + wx2);
+        res[2] = v[0] * (xz2 + wy2) + v[1] * (yz2 - wx2) + v[2] * (1.0f - xx2 - yy2);
+    }
+
     inline void quat2rotmat(const niknum q[4], niknum m[9]) {
         niknum x2 = q[0] * 2.0f;
         niknum y2 = q[1] * 2.0f;
@@ -148,6 +168,12 @@ namespace nik3dsim {
         res[0] = m[0] * v[0] + m[1] * v[1] + m[2] * v[2];
         res[1] = m[3] * v[0] + m[4] * v[1] + m[5] * v[2];
         res[2] = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
+    }
+
+    inline void vec3_matmul_t(niknum res[3], const niknum m[9], const niknum v[3]) {
+        res[0] = m[0] * v[0] + m[3] * v[1] + m[6] * v[2];
+        res[1] = m[1] * v[0] + m[4] * v[1] + m[7] * v[2];
+        res[2] = m[2] * v[0] + m[5] * v[1] + m[8] * v[2];
     }
 
     inline void vec3_mul(niknum res[3], const niknum a[3], const niknum b[3]) {

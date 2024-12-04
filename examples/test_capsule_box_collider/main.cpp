@@ -58,7 +58,6 @@ int main(int argc, char* argv[]) {
     niknum boxSize[3] = {1.0f, 1.0f, 1.0f};
     niknum boxPos[3] = {0.0f, 0.0f, 0.0f};
     niknum boxRot[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-    niknum boxInvRot[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     niknum capsuleSize[3] = {0.0f, 1.0f, 0.0f}; // radius, height, unused
     
     float time = 0.0f;
@@ -120,7 +119,7 @@ int main(int argc, char* argv[]) {
         Contact contacts[4];
         int numcon = collide_capsule_box(contacts,
             capsulePos, capsuleRot, capsuleSize,
-            boxPos, boxRot, boxInvRot, boxSize
+            boxPos, boxRot, boxSize
         );
         
         // Draw collision normal and contact point

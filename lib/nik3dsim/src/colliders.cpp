@@ -184,7 +184,7 @@ namespace nik3dsim {
         }
     }
 
-    int collide_sphere_plane(Contact contacts[], const niknum spos[3], const niknum ssize[3], const niknum ppos[3], const niknum prot[4], const niknum iprot[4]) {
+    int collide_sphere_plane(Contact contacts[], const niknum spos[3], const niknum ssize[3], const niknum ppos[3], const niknum prot[4]) {
         niknum tmp[3] = {0, 0, 1}, planeNormal[3];
         vec3_quat_rotate(planeNormal, prot, tmp);
         niknum sphereToPlane[3];
@@ -197,7 +197,7 @@ namespace nik3dsim {
         return 1;
     }
 
-    int collide_capsule_plane(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum ppos[3], const niknum prot[4], const niknum iprot[4]) {
+    int collide_capsule_plane(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum ppos[3], const niknum prot[4]) {
         niknum tmp[3] = {0, 0, 1}, planeNormal[3], capsuleDir[3];
         vec3_quat_rotate(planeNormal, prot, tmp);
         vec3_quat_rotate(capsuleDir, crot, tmp);
@@ -217,26 +217,31 @@ namespace nik3dsim {
         return 1;
     }
 
-    int collide_capsule_box(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum bpos[3], const niknum brot[4], const niknum ibrot[4], const niknum bsize[3]) {
+    int collide_capsule_box(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum bpos[3], const niknum brot[4], const niknum bsize[3]) {
         niknum capsuleDir[3], tmp[3] = {0, 0, 1};  // Default capsule direction
         vec3_quat_rotate(capsuleDir, crot, tmp);  // Rotate to world space
         niknum segStart[3], segEnd[3], relStart[3], relEnd[3];
         vec3_addscl(segStart, cpos, capsuleDir, csize[1]/2);
         vec3_addscl(segEnd, cpos, capsuleDir, -csize[1]/2);
-        niknum temp[3];
+        niknum temp[3], rot[9];
+        quat2rotmat(brot, rot);
         vec3_sub(temp, segStart, bpos);  // Translate to box origin
-        vec3_quat_rotate(relStart, ibrot, temp);  // Rotate to box space
+        // vec3_quat_rotate(relStart, ibrot, temp);  // Rotate to box space
+        vec3_matmul_t(relStart, rot, temp);
         vec3_sub(temp, segEnd, bpos);  // Translate to box origin
-        vec3_quat_rotate(relEnd, ibrot, temp);  // Rotate to box space
+        // vec3_quat_rotate(relEnd, ibrot, temp);  // Rotate to box space
+        vec3_matmul_t(relEnd, rot, temp);
         niknum query_result[4];
         segment_box_query(query_result, relStart, relEnd, bsize);
         niknum d[3];
         vec3_sub(d, relEnd, relStart);
         niknum segmentPoint[3];
         vec3_addscl(segmentPoint, relStart, d, query_result[3]);
-        vec3_quat_rotate(temp, brot, query_result);
+        // vec3_quat_rotate(temp, brot, query_result);
+        vec3_matmul(temp, rot, query_result);
         vec3_add(contacts[0].pos0, temp, bpos);
-        vec3_quat_rotate(temp, brot, segmentPoint);
+        // vec3_quat_rotate(temp, brot, segmentPoint);
+        vec3_matmul(temp, rot, segmentPoint);
         vec3_add(contacts[0].pos1, temp, bpos);
         niknum normal[3];
         vec3_sub(normal, contacts[0].pos1, contacts[0].pos0);
@@ -275,7 +280,7 @@ namespace nik3dsim {
         return 1;
     }
 
-    int collide_box_plane(Contact contacts[], const niknum bpos[3], const niknum brot[4], const niknum bsize[3], const niknum ppos[3], const niknum prot[4], const niknum iprot[4]) {
+    int collide_box_plane(Contact contacts[], const niknum bpos[3], const niknum brot[4], const niknum bsize[3], const niknum ppos[3], const niknum prot[4]) {
         // Get plane normal in world space (plane's local up vector rotated by orientation)
         niknum tmp[3] = {0, 0, 1}, planeNormal[3];
         vec3_quat_rotate(planeNormal, prot, tmp);
@@ -344,7 +349,7 @@ namespace nik3dsim {
 
     int collide_rigid_static(Contact* contacts, const RigidBodyModel* bm0, const StaticBodyModel* bm1, const RigidBodyData* bd0) {
         bool swap = bm0->type > bm1->type;
-        niknum pos0[3], pos1[3], size0[3], size1[3], rot0[4], rot1[4], irot0[4], irot1[4];
+        niknum pos0[3], pos1[3], size0[3], size1[3], rot0[4], rot1[4];
         BodyType t0, t1;
         int numcon;
 
@@ -355,14 +360,12 @@ namespace nik3dsim {
         vec3_copy(size1, swap ? bm0->size : bm1->size);
         vec4_copy(rot0, swap ? bm1->rot : bd0->rot);
         vec4_copy(rot1, swap ? bd0->rot : bm1->rot);
-        vec4_copy(irot0, swap ? bm1->invRot : bd0->invRot);
-        vec4_copy(irot1, swap ? bd0->invRot : bm1->invRot);
 
-        if (t0 == BODY_SPHERE && t1 == BODY_PLANE) numcon = collide_sphere_plane(contacts, pos0, size0, pos1, rot1, irot1);
-        else if (t0 == BODY_CAPSULE && t1 == BODY_PLANE) numcon = collide_capsule_plane(contacts, pos0, rot0, size0, pos1, rot1, irot1);
-        else if (t0 == BODY_BOX && t1 == BODY_CAPSULE) numcon = collide_capsule_box(contacts, pos1, rot1, size1, pos0, rot0, irot0, size0);
+        if (t0 == BODY_SPHERE && t1 == BODY_PLANE) numcon = collide_sphere_plane(contacts, pos0, size0, pos1, rot1);
+        else if (t0 == BODY_CAPSULE && t1 == BODY_PLANE) numcon = collide_capsule_plane(contacts, pos0, rot0, size0, pos1, rot1);
+        else if (t0 == BODY_BOX && t1 == BODY_CAPSULE) numcon = collide_capsule_box(contacts, pos1, rot1, size1, pos0, rot0, size0);
         else if (t0 == BODY_AXIS_ALIGNED_BOX && t1 == BODY_CAPSULE) numcon = collide_capsule_aabb(contacts, pos1, rot1, size1, pos0, size0);
-        else if (t0 == BODY_BOX && t1 == BODY_PLANE) numcon = collide_box_plane(contacts, pos0, rot0, size0, pos1, rot1, irot1);
+        else if (t0 == BODY_BOX && t1 == BODY_PLANE) numcon = collide_box_plane(contacts, pos0, rot0, size0, pos1, rot1);
 
         if (swap) {
             for (int i = 0; i < numcon; i++) vec3_swap(contacts[i].pos0, contacts[i].pos1);
