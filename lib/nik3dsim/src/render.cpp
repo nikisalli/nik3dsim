@@ -219,44 +219,112 @@ void renderer_draw_wireframe_box(Renderer* renderer, niknum pos[3], niknum size[
     renderer_draw_wireframe_line(renderer, vertices[3], vertices[7], r, g, b);
 }
 
-void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], float radius, float r, float g, float b) {
-    const int segments = 16;
+void renderer_draw_wireframe_sphere(Renderer* renderer, niknum pos[3], niknum rot[4], float radius, float r, float g, float b) {
+    const int segments = 16;        // Circle segments
+    const int num_parallels = 8;    // Number of parallels (latitude lines)
+    const int num_meridians = 16;   // Number of meridians (longitude lines)
     
-    // Draw three circles in XY, YZ, and XZ planes
-    niknum p1[3], p2[3];
-    for (int i = 0; i < segments; i++) {
-        float theta1 = (float)i / segments * 2.0f * M_PI;
-        float theta2 = (float)(i + 1) / segments * 2.0f * M_PI;
+    niknum local_point[3], rotated[3], world_point[3];
+    
+    // Draw parallels (latitude circles)
+    for (int i = 1; i < num_parallels; i++) {
+        float phi = (float)i / (num_parallels + 1) * M_PI;  // Angle from north pole
+        float y = radius * cosf(phi);
+        float circle_radius = radius * sinf(phi);
         
-        // XY plane circle
-        p1[0] = pos[0] + radius * cosf(theta1);
-        p1[1] = pos[1] + radius * sinf(theta1);
-        p1[2] = pos[2];
+        for (int j = 0; j < segments; j++) {
+            float theta1 = (float)j / segments * 2.0f * M_PI;
+            float theta2 = (float)(j + 1) / segments * 2.0f * M_PI;
+            
+            // First point
+            local_point[0] = circle_radius * cosf(theta1);
+            local_point[1] = y;
+            local_point[2] = circle_radius * sinf(theta1);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p1[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            // Second point
+            local_point[0] = circle_radius * cosf(theta2);
+            local_point[1] = y;
+            local_point[2] = circle_radius * sinf(theta2);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p2[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
+        }
+    }
+    
+    // Draw meridians (longitude circles)
+    for (int i = 0; i < num_meridians; i++) {
+        float longitude = (float)i / num_meridians * 2.0f * M_PI;
         
-        p2[0] = pos[0] + radius * cosf(theta2);
-        p2[1] = pos[1] + radius * sinf(theta2);
-        p2[2] = pos[2];
-        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
-        
-        // YZ plane circle
-        p1[0] = pos[0];
-        p1[1] = pos[1] + radius * cosf(theta1);
-        p1[2] = pos[2] + radius * sinf(theta1);
-        
-        p2[0] = pos[0];
-        p2[1] = pos[1] + radius * cosf(theta2);
-        p2[2] = pos[2] + radius * sinf(theta2);
-        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
-        
-        // XZ plane circle
-        p1[0] = pos[0] + radius * cosf(theta1);
-        p1[1] = pos[1];
-        p1[2] = pos[2] + radius * sinf(theta1);
-        
-        p2[0] = pos[0] + radius * cosf(theta2);
-        p2[1] = pos[1];
-        p2[2] = pos[2] + radius * sinf(theta2);
-        renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
+        for (int j = 0; j < segments; j++) {
+            float phi1 = (float)j / segments * M_PI;
+            float phi2 = (float)(j + 1) / segments * M_PI;
+            
+            // First point
+            local_point[0] = radius * sinf(phi1) * cosf(longitude);
+            local_point[1] = radius * cosf(phi1);
+            local_point[2] = radius * sinf(phi1) * sinf(longitude);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p1[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            // Second point
+            local_point[0] = radius * sinf(phi2) * cosf(longitude);
+            local_point[1] = radius * cosf(phi2);
+            local_point[2] = radius * sinf(phi2) * sinf(longitude);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p2[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
+        }
+    }
+    
+    // Add three main circles in XY, YZ, and XZ planes for better visualization
+    for (int axis = 0; axis < 3; axis++) {
+        for (int i = 0; i < segments; i++) {
+            float theta1 = (float)i / segments * 2.0f * M_PI;
+            float theta2 = (float)(i + 1) / segments * 2.0f * M_PI;
+            
+            // Initialize point coordinates
+            local_point[0] = 0.0f;
+            local_point[1] = 0.0f;
+            local_point[2] = 0.0f;
+            
+            // Set coordinates based on current axis
+            int idx1 = axis;
+            int idx2 = (axis + 1) % 3;
+            local_point[idx1] = radius * cosf(theta1);
+            local_point[idx2] = radius * sinf(theta1);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p1[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            // Second point
+            local_point[idx1] = radius * cosf(theta2);
+            local_point[idx2] = radius * sinf(theta2);
+            
+            // Apply rotation and translation
+            vec3_quat_rotate(rotated, rot, local_point);
+            vec3_add(world_point, pos, rotated);
+            niknum p2[3] = {world_point[0], world_point[1], world_point[2]};
+            
+            renderer_draw_wireframe_line(renderer, p1, p2, r, g, b);
+        }
     }
 }
 
@@ -606,7 +674,7 @@ void renderer_draw_body(Renderer* renderer, RigidBodyModel model, RigidBodyData 
             renderer_draw_wireframe_box(renderer, data.pos, model.size, no_rot, r, g, b);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, data.pos, model.size[0], r, g, b);
+            renderer_draw_wireframe_sphere(renderer, data.pos, data.rot, model.size[0], r, g, b);
             break;
         case BODY_PLANE:
             renderer_draw_wireframe_plane(renderer, data.pos, data.rot, r, g, b);
@@ -629,7 +697,7 @@ void renderer_draw_static(Renderer* renderer, StaticBodyModel model, float r, fl
             renderer_draw_wireframe_box(renderer, model.pos, model.size, no_rot, r, g, b);
             break;
         case BODY_SPHERE:
-            renderer_draw_wireframe_sphere(renderer, model.pos, model.size[0], r, g, b);
+            renderer_draw_wireframe_sphere(renderer, model.pos, model.rot, model.size[0], r, g, b);
             break;
         case BODY_PLANE:
             renderer_draw_wireframe_plane(renderer, model.pos, model.rot, r, g, b);

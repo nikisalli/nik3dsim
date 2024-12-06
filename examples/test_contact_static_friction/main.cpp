@@ -54,7 +54,7 @@ int main() {
         angles3 
     );
     body3model.contactCompliance = 0.001f;
-    body3model.frictionCoef = 3.0f;
+    body3model.frictionCoef = 0.0f;
 
     StaticBodyModel body2model;
     body2model.conaffinity = 1;
@@ -76,9 +76,9 @@ int main() {
     m.bodies[body1_idx] = body1model;
     d.bodies[body1_idx] = body1data;
 
-    int body3_idx = m.rigidBodyCount++;
-    m.bodies[body3_idx] = body3model;
-    d.bodies[body3_idx] = body3data;
+    // int body3_idx = m.rigidBodyCount++;
+    // m.bodies[body3_idx] = body3model;
+    // d.bodies[body3_idx] = body3data;
 
     int body2_idx = m.staticBodyCount++;
     m.staticBodies[body2_idx] = body2model;
@@ -153,7 +153,7 @@ int main() {
         }
         
         Uint32 currentTime = SDL_GetTicks();
-        float deltaTime = (currentTime - lastTime) / 1.0f;
+        float deltaTime = (currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
         static float accumulator = 0.0f;
         accumulator += deltaTime;
@@ -168,8 +168,6 @@ int main() {
             vec3_sub(dir, contact->pos1, contact->pos0);
             length = vec3_normalize(dir, dir);
             renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
-            renderer_draw_wireframe_sphere(&renderer, contact->pos0, 0.1f, 1.0f, 0.0f, 0.0f);
-            renderer_draw_wireframe_sphere(&renderer, contact->pos1, 0.1f, 0.0f, 0.0f, 1.0f);
             // printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
         }
         

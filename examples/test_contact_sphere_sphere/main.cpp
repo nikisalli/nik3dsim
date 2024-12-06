@@ -20,61 +20,34 @@ int main() {
     
     RigidBodyModel body1model;
     RigidBodyData body1data;
-    niknum size1[3] = {0.4f, 1.0f, 0.0f};
-    niknum pos1[3] = {0.5, 0, 10.0f};           // Positioned left of origin
-    niknum angles1[3] = {0, M_PI / 2, 0};            // No initial rotation
+    niknum size1[3] = {1.0f, 0.0f, 0.0f};     // Unit cube
+    niknum pos1[3] = {0, 0, 10.0f};           // Positioned left of origin
+    niknum angles1[3] = {0, 0, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;
     rigidbody_init(
         &body1model,
         &body1data,
-        nik3dsim::BODY_CAPSULE,
+        nik3dsim::BODY_SPHERE,
         size1,  
         1.0f,   // Density
         pos1,   
         angles1 
     );
-
-    StaticBodyModel body4model;
-    body4model.conaffinity = 1;
-    body4model.contype = 1;
-    niknum size4[3] = {1.0f, 1.0f, 1.0f};     // Unit cube
-    niknum pos4[3] = {2, 0, 5};           // Positioned left of origin
-    niknum angles4[3] = {0, 0, 0};            // No initial rotation
-    static_init(
-        &body4model,
-        nik3dsim::BODY_AXIS_ALIGNED_BOX,
-        size4,
-        pos4,
-        angles4
-    );
+    body1model.frictionCoef = 100.0f;
 
     StaticBodyModel body2model;
     body2model.conaffinity = 1;
     body2model.contype = 1;
-    niknum size2[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
-    niknum pos2[3] = {2, 0, 0};           // Positioned left of origin
+    niknum size2[3] = {1.0f, 0.0f, 0.0f};     // Unit cube
+    niknum pos2[3] = {0.05, 0, 0};           // Positioned left of origin
     niknum angles2[3] = {0, -M_PI * 0.4, 0};            // No initial rotation
     static_init(
         &body2model,
-        nik3dsim::BODY_PLANE,
+        nik3dsim::BODY_SPHERE,
         size2,
         pos2,
         angles2
-    );
-
-    StaticBodyModel body3model;
-    body3model.conaffinity = 1;
-    body3model.contype = 1;
-    niknum size3[3] = {0.0f, 0.0f, 0.0f};     // Unit cube
-    niknum pos3[3] = {-2, 0, 0};           // Positioned left of origin
-    niknum angles3[3] = {0, M_PI * 0.4, 0};            // No initial rotation
-    static_init(
-        &body3model,
-        nik3dsim::BODY_PLANE,
-        size3,
-        pos3,
-        angles3
     );
 
     // Add bodies to simulator
@@ -84,12 +57,6 @@ int main() {
 
     int body2_idx = m.staticBodyCount++;
     m.staticBodies[body2_idx] = body2model;
-
-    int body3_idx = m.staticBodyCount++;
-    m.staticBodies[body3_idx] = body3model;
-
-    int body4_idx = m.staticBodyCount++;
-    m.staticBodies[body4_idx] = body4model;
     
     // Initialize renderer
     Renderer renderer;
@@ -167,17 +134,17 @@ int main() {
         accumulator += deltaTime;
         while (accumulator >= m.dt) {
             simulator_step(&m, &d);
+            for (int i = 0; i < d.contactCount; i++) {
+                Contact* contact = &d.contacts[i];
+                niknum dir[3], length;
+                vec3_sub(dir, contact->pos1, contact->pos0);
+                length = vec3_normalize(dir, dir);
+                renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
+                // printf("contact: pos: %.2f %.2f %.2f n: %.2f %.2f %.2f depth: %.2f\n", contact->pos[0], contact->pos[1], contact->pos[2], contact->n[0], contact->n[1], contact->n[2], contact->depth);
+            }
             accumulator -= m.dt;
         }
 
-        for (int i = 0; i < d.contactCount; i++) {
-            Contact* contact = &d.contacts[i];
-            niknum dir[3], length;
-            vec3_sub(dir, contact->pos1, contact->pos0);
-            length = vec3_normalize(dir, dir);
-            renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
-            printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
-        }
         
         renderer_draw_simulation(&renderer, &m, &d);
         SDL_Delay(1);

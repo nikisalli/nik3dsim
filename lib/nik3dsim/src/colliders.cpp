@@ -184,6 +184,16 @@ namespace nik3dsim {
         }
     }
 
+    int collide_sphere_sphere(Contact contacts[], const niknum s1pos[3], const niknum s1size[3], const niknum s2pos[3], const niknum s2size[3]) {
+        niknum n[3];
+        vec3_sub(n, s1pos, s2pos);
+        niknum dist = vec3_normalize(n, n);
+        contacts[0].depth = dist - s1size[0] - s2size[0];
+        vec3_addscl(contacts[0].pos0, s1pos, n, -s1size[0]);
+        vec3_addscl(contacts[0].pos1, s2pos, n, s2size[0]);
+        return 1;
+    }
+
     int collide_sphere_plane(Contact contacts[], const niknum spos[3], const niknum ssize[3], const niknum ppos[3], const niknum prot[4]) {
         niknum tmp[3] = {0, 0, 1}, planeNormal[3];
         vec3_quat_rotate(planeNormal, prot, tmp);
@@ -208,13 +218,20 @@ namespace nik3dsim {
         vec3_sub(toP2, p2, ppos);
         niknum d1 = vec3_dot(planeNormal, toP1);
         niknum d2 = vec3_dot(planeNormal, toP2);
-        niknum useFirst = fabs(d1) < fabs(d2);
-        niknum distance = useFirst ? d1 : d2;
-        niknum invert = (d1 < 0 || useFirst) && (d2 < 0 || !useFirst);
-        vec3_addscl(contacts[0].pos0, useFirst ? p1 : p2, planeNormal, -csize[0] * (invert ? -1 : 1));
-        vec3_addscl(contacts[0].pos1, useFirst ? p1 : p2, planeNormal, -distance);
-        contacts[0].depth = fabs(distance) - csize[0];
-        return 1;
+        
+        int numContacts = (fabs(d1) < csize[0]) + (fabs(d2) < csize[0]);
+        niknum depths[2] = {fabs(d1) - csize[0], fabs(d2) - csize[0]};
+        niknum* points[2] = {p1, p2};
+        niknum distances[2] = {d1, d2};
+
+        for(int i = 0, j = 0; i < 2; i++) {
+            if(depths[i] >= 0) continue;
+            vec3_addscl(contacts[j].pos0, points[i], planeNormal, -csize[0] * copysignf(1.0f, distances[i]));
+            vec3_addscl(contacts[j].pos1, points[i], planeNormal, -distances[i]);
+            contacts[j].depth = depths[i];
+            j++;
+        }
+        return numContacts;
     }
 
     int collide_capsule_box(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum bpos[3], const niknum brot[4], const niknum bsize[3]) {
@@ -366,6 +383,7 @@ namespace nik3dsim {
         else if (t0 == BODY_BOX && t1 == BODY_CAPSULE) numcon = collide_capsule_box(contacts, pos1, rot1, size1, pos0, rot0, size0);
         else if (t0 == BODY_AXIS_ALIGNED_BOX && t1 == BODY_CAPSULE) numcon = collide_capsule_aabb(contacts, pos1, rot1, size1, pos0, size0);
         else if (t0 == BODY_BOX && t1 == BODY_PLANE) numcon = collide_box_plane(contacts, pos0, rot0, size0, pos1, rot1);
+        else if (t0 == BODY_SPHERE && t1 == BODY_SPHERE) numcon = collide_sphere_sphere(contacts, pos0, size0, pos1, size1);
 
         if (swap) {
             for (int i = 0; i < numcon; i++) vec3_swap(contacts[i].pos0, contacts[i].pos1);

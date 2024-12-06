@@ -346,7 +346,7 @@ namespace nik3dsim {
         vec4_addscl(bd0->rot, bd0->rot, tmp, 0.5f);
         quat_normalize(bd0->rot, bd0->rot);
 
-        // Static friction
+        // Static friction with proper distribution between linear and angular motion
         vec3_sub(dp, p0, contact->pos0);
         vec3_scl(tmp, n, vec3_dot(dp, n));
         vec3_sub(dp, dp, tmp);
@@ -354,23 +354,45 @@ namespace nik3dsim {
         niknum lamt = vec3_length(dp);
         niknum friction = fmaxf(bm0->frictionCoef, bm1->frictionCoef);
         niknum applyfriction = lamt < friction * lamn;
-        vec3_addscl(bd0->pos, bd0->pos, dp, -applyfriction);
-        // Get current velocity from prevPos and prevRot and adjust current pos to project velocity on contact normal
-        vec3_sub(dp, bd0->pos, bd0->prevPos);
-        vec3_scl(dp, n, vec3_dot(dp, n));
-        vec3_add(tmp, dp, bd0->prevPos);
-        vec3_sub(dp, tmp, bd0->pos);
-        vec3_addscl(bd0->pos, bd0->pos, dp, applyfriction);
-        // Also remove rotations around contact normal
-        niknum twist[4], dq[4];
-        quat_conj(tmp, bd0->prevRot);  // tmp = prev.conj
-        quat_mul(dq, bd0->rot, tmp);  // dq = current * prev.conj
-        quat_get_twist(twist, dq, n);  // get twist component of relative rotation
-        quat_conj(twist, twist);  // conjugate to remove it
-        quat_mul(tmp, dq, twist);  // tmp = dq * twist.conj
-        vec4_sub(tmp, tmp, dq);
-        vec4_addscl(dq, dq, tmp, applyfriction);
-        quat_mul(bd0->rot, dq, bd0->prevRot);  // current = dq * prev
+        
+        if (!applyfriction) return;
+
+        // Calculate friction direction unit vector
+        niknum t[3];
+        vec3_normalize(t, dp);
+        vec3_scl(t, t, -1.0f);
+        
+        // Calculate r × t for angular contribution
+        niknum r_cross_t[3];
+        vec3_cross(r_cross_t, r0, t);
+        
+        // Transform to body space, apply inverse inertia, transform back
+        vec3_matmul_t(temp, rot0, r_cross_t);
+        vec3_mul(tmp, temp, bm0->invInertia);
+        vec3_matmul(temp, rot0, tmp);
+        
+        // Calculate effective mass for friction
+        niknum angular_term_t = vec3_dot(r_cross_t, temp);
+        niknum eff_mass_t = bm0->invMass + angular_term_t;
+        
+        // Calculate friction impulse magnitude
+        niknum lamt_max = friction * lamn;
+        niknum lambda_t = lamt / (eff_mass_t + 1e-7f);
+        lambda_t = fminf(lambda_t, lamt_max);
+        
+        // Apply linear component
+        vec3_addscl(bd0->pos, bd0->pos, t, lambda_t * bm0->invMass);
+        
+        // Apply angular component
+        vec3_cross(temp, r0, t);
+        vec3_scl(temp, temp, lambda_t);
+        vec3_matmul_t(dom, rot0, temp);
+        vec3_mul(temp, dom, bm0->invInertia);
+        vec3_matmul(dom, rot0, temp);
+        vec4_zero(drot);
+        vec3_copy(drot, dom);
+        quat_mul(tmp, drot, bd0->rot);
+        vec4_addscl(bd0->rot, bd0->rot, tmp, 0.5f);
         quat_normalize(bd0->rot, bd0->rot);
     }
 

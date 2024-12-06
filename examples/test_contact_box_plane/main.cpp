@@ -162,8 +162,6 @@ int main() {
             vec3_sub(dir, contact->pos1, contact->pos0);
             length = vec3_normalize(dir, dir);
             renderer_draw_wireframe_arrow(&renderer, contact->pos0, dir, 1.0f, 0.1f, 0.1f, 1.0f, 1.0f, 0.0f);
-            renderer_draw_wireframe_sphere(&renderer, contact->pos0, 0.1f, 1.0f, 0.0f, 0.0f);
-            renderer_draw_wireframe_sphere(&renderer, contact->pos1, 0.1f, 0.0f, 0.0f, 1.0f);
             printf("contact: pos0: %.2f %.2f %.2f pos1: %.2f %.2f %.2f depth: %.2f\n", contact->pos0[0], contact->pos0[1], contact->pos0[2], contact->pos1[0], contact->pos1[1], contact->pos1[2], contact->depth);
         }
         
