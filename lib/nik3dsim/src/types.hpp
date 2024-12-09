@@ -88,22 +88,22 @@ namespace nik3dsim {
         niknum dt;
         niknum damping;
 
-        RigidBodyModel bodies[100];
+        RigidBodyModel bodies[10000];
         size_t rigidBodyCount;
-        StaticBodyModel staticBodies[100];
+        StaticBodyModel staticBodies[10000];
         size_t staticBodyCount;
 
-        DistanceConstraint positionalConstraints[100];
+        DistanceConstraint positionalConstraints[10000];
         size_t positionalConstraintCount;
-        HingeConstraint hingeConstraints[100];
+        HingeConstraint hingeConstraints[10000];
         size_t hingeConstraintCount;
 
         size_t posIters;
     } nikModel;
 
     typedef struct {
-        RigidBodyData bodies[100];
-        Contact contacts[100];
+        RigidBodyData bodies[10000];
+        Contact contacts[10000];
         size_t contactCount;
     } nikData;
 }

@@ -479,6 +479,9 @@ namespace nik3dsim {
             vec3_scl(bd->vel, bd->vel, fmaxf(1.0f - m->damping * m->dt, 0.0f));
             vec3_scl(bd->omega, bd->omega, fmaxf(1.0f - m->damping * m->dt, 0.0f));
         }
+
+        // Solve velocity constraints
+        
     }
 
     void print_simulation_state(nikModel* m, nikData* d) {
