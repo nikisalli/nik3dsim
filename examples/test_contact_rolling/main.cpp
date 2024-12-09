@@ -21,7 +21,7 @@ int main() {
     RigidBodyModel body1model;
     RigidBodyData body1data;
     niknum size1[3] = {0.5f, 0.5f, 0.5f};
-    niknum pos1[3] = {1, 0, 0.5f};           // Positioned left of origin
+    niknum pos1[3] = {1, 0, 3.0f};           // Positioned left of origin
     niknum angles1[3] = {0, 0, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;

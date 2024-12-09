@@ -7,4 +7,5 @@ namespace nik3dsim {
     int collide_capsule_box(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum bpos[3], const niknum brot[4], const niknum bsize[3]);
     int collide_capsule_aabb(Contact contacts[], const niknum cpos[3], const niknum crot[4], const niknum csize[3], const niknum bpos[3], const niknum bsize[3]);
     int collide_box_plane(Contact contacts[], const niknum bpos[3], const niknum brot[4], const niknum bsize[3], const niknum ppos[3], const niknum prot[4]);
+    int collide_sphere_box(Contact dists[], const niknum spos[3], const niknum ssize[3], const niknum bpos[3], const niknum brot[4], const niknum bsize[3]);
 } // namespace nik3dsim
