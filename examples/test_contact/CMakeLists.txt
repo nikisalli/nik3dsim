@@ -1,7 +1,9 @@
-cmake_minimum_required (VERSION 3.10.0)
-project (test_contact CXX)
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin )
+cmake_minimum_required(VERSION 3.10.0)
 
-add_executable(test_contact main.cpp)
+# Get the name of the directory containing CMakeLists.txt
+get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+project(${PROJECT_NAME} CXX)
 
-target_link_libraries (test_contact nik3dsim)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} nik3dsim)

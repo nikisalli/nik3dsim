@@ -8,7 +8,7 @@ int main() {
     // Create simulator with custom timestep and iterations
     nikModel m;
     nikData d;
-    niknum gravity[3] = {0, 0, -9.81};
+    niknum gravity[3] = {0, 0, -10};
     simulator_init(
         &m,
         gravity,
@@ -21,40 +21,78 @@ int main() {
     RigidBodyModel body1model;
     RigidBodyData body1data;
     niknum size1[3] = {0.5f, 0.5f, 0.5f};
-    niknum pos1[3] = {1, 0, 3.0f};           // Positioned left of origin
-    niknum angles1[3] = {0, 0, 0};            // No initial rotation
+    niknum pos1[3] = {1, 0, 0.5f};           // Positioned left of origin
+    niknum angles1[3] = {0, M_PI / 2, 0};            // No initial rotation
     body1model.conaffinity = 1;
     body1model.contype = 1;
     rigidbody_init(
         &body1model,
         &body1data,
-        nik3dsim::BODY_SPHERE,
+        nik3dsim::BODY_BOX,
         size1,  
         1.0f,   // Density
         pos1,   
         angles1 
     );
-    body1model.contactCompliance = 0.0f;
-    body1model.frictionCoef = 1000.0f;
+    body1model.contactCompliance = 0.001f;
+    body1model.frictionCoef = 10.0f;
 
     RigidBodyModel body3model;
     RigidBodyData body3data;
-    niknum size3[3] = {0.5f, 2.0f, 0.5f};
-    niknum pos3[3] = {3, 0, 3.0f};           // Positioned left of origin
-    niknum angles3[3] = {M_PI / 2, 0, 0};            // No initial rotation
+    niknum size3[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos3[3] = {1, 3, 0.5f};           // Positioned left of origin
+    niknum angles3[3] = {0, M_PI / 2, 0};            // No initial rotation
     body3model.conaffinity = 1;
     body3model.contype = 1;
     rigidbody_init(
         &body3model,
         &body3data,
-        nik3dsim::BODY_CAPSULE,
+        nik3dsim::BODY_BOX,
         size3,  
         1.0f,   // Density
         pos3,   
         angles3 
     );
-    body3model.contactCompliance = 0.0f;
-    body3model.frictionCoef = 1.0f;
+    body3model.contactCompliance = 0.001f;
+    body3model.frictionCoef = 0.2f;
+
+    RigidBodyModel body4model;
+    RigidBodyData body4data;
+    niknum size4[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos4[3] = {1, 6, 0.5f};           // Positioned left of origin
+    niknum angles4[3] = {0, M_PI / 2, 0};            // No initial rotation
+    body4model.conaffinity = 1;
+    body4model.contype = 1;
+    rigidbody_init(
+        &body4model,
+        &body4data,
+        nik3dsim::BODY_BOX,
+        size4,  
+        1.0f,   // Density
+        pos4,   
+        angles4 
+    );
+    body4model.contactCompliance = 0.001f;
+    body4model.frictionCoef = 0.1f;
+
+    RigidBodyModel body5model;
+    RigidBodyData body5data;
+    niknum size5[3] = {0.5f, 0.5f, 0.5f};
+    niknum pos5[3] = {1, 9, 0.5f};           // Positioned left of origin
+    niknum angles5[3] = {0, M_PI / 2, 0};            // No initial rotation
+    body5model.conaffinity = 1;
+    body5model.contype = 1;
+    rigidbody_init(
+        &body5model,
+        &body5data,
+        nik3dsim::BODY_BOX,
+        size5,  
+        1.0f,   // Density
+        pos5,   
+        angles5 
+    );
+    body5model.contactCompliance = 0.001f;
+    body5model.frictionCoef = 0.0f;
 
     StaticBodyModel body2model;
     body2model.conaffinity = 1;
@@ -72,13 +110,21 @@ int main() {
     body2model.contactCompliance = 0.001f;
 
     // Add bodies to simulator
-    // int body1_idx = m.rigidBodyCount++;
-    // m.bodies[body1_idx] = body1model;
-    // d.bodies[body1_idx] = body1data;
+    int body1_idx = m.rigidBodyCount++;
+    m.bodies[body1_idx] = body1model;
+    d.bodies[body1_idx] = body1data;
 
     int body3_idx = m.rigidBodyCount++;
     m.bodies[body3_idx] = body3model;
     d.bodies[body3_idx] = body3data;
+
+    int body4_idx = m.rigidBodyCount++;
+    m.bodies[body4_idx] = body4model;
+    d.bodies[body4_idx] = body4data;
+
+    int body5_idx = m.rigidBodyCount++;
+    m.bodies[body5_idx] = body5model;
+    d.bodies[body5_idx] = body5data;
 
     int body2_idx = m.staticBodyCount++;
     m.staticBodies[body2_idx] = body2model;

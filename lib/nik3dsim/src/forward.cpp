@@ -326,7 +326,7 @@ namespace nik3dsim {
         
         // Calculate impulse magnitude
         niknum alpha = (bm0->contactCompliance + bm1->contactCompliance) / (dt * dt * 2.0);
-        niknum lamn = -depth / (eff_mass + alpha);
+        niknum lamn = fabs(-depth / (eff_mass + alpha));
         
         // Apply linear impulse
         vec3_addscl(bd0->pos, bd0->pos, n, lamn * bm0->invMass);
@@ -353,9 +353,13 @@ namespace nik3dsim {
         
         niknum lamt = vec3_length(dp);
         niknum friction = fmaxf(bm0->frictionCoef, bm1->frictionCoef);
-        niknum applyfriction = lamt < friction * lamn;
-        
-        if (!applyfriction) return;
+
+        // Apply static friction only
+        // niknum applyfriction = lamt < friction * lamn;
+        // if (!applyfriction) return;
+
+        // Apply dynamic friction with same coefficient as static friction (approximation)
+        lamt = fminf(lamt, friction * lamn);
 
         // Calculate friction direction unit vector
         niknum t[3];
@@ -479,9 +483,6 @@ namespace nik3dsim {
             vec3_scl(bd->vel, bd->vel, fmaxf(1.0f - m->damping * m->dt, 0.0f));
             vec3_scl(bd->omega, bd->omega, fmaxf(1.0f - m->damping * m->dt, 0.0f));
         }
-
-        // Solve velocity constraints
-        
     }
 
     void print_simulation_state(nikModel* m, nikData* d) {
