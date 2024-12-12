@@ -1,5 +1,4 @@
 #include <cmath>
-#include <cstdio>
 #include "colliders.hpp"
 #include "math.hpp"
 #include "types.hpp"
@@ -9,11 +8,11 @@ namespace nik3dsim {
     typedef int (*CollisionFunc)(Contact[], const niknum[3], const niknum[4], const niknum[3], const niknum[3], const niknum[4], const niknum[3]);
     static CollisionFunc collisionTable[5][5] = {
         //                    Sphere                 Box                     Axis-Aligned Box         Capsule                    Plane
-        /* Sphere    */  {collide_sphere_sphere, collide_sphere_box,   nullptr,         nullptr,                  collide_sphere_plane   },
-        /* Box       */  {nullptr,               nullptr,              nullptr,         collide_capsule_box,      collide_box_plane      },
-        /* AABB      */  {nullptr,               nullptr,              nullptr,         collide_capsule_aabb,     nullptr                },
-        /* Capsule   */  {nullptr,               nullptr,              nullptr,         nullptr,                  collide_capsule_plane  },
-        /* Plane     */  {nullptr,               nullptr,              nullptr,         nullptr,                  nullptr                }
+        /* Sphere  */ {collide_sphere_sphere, collide_sphere_box,   collide_sphere_aabb,   collide_sphere_capsule,   collide_sphere_plane   },
+        /* Box     */ {nullptr,               nullptr,              nullptr,               collide_capsule_box,      collide_box_plane      },
+        /* AABB    */ {nullptr,               nullptr,              nullptr,               collide_capsule_aabb,     nullptr                },
+        /* Capsule */ {nullptr,               nullptr,              nullptr,               collide_capsule_capsule,  collide_capsule_plane  },
+        /* Plane   */ {nullptr,               nullptr,              nullptr,               nullptr,                  nullptr                }
     };
 
     static void segment_box_query(niknum result[4], const niknum s[3], const niknum e[3], const niknum b[3]) {
@@ -219,6 +218,77 @@ namespace nik3dsim {
         return 1;
     }
 
+    int collide_sphere_capsule(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
+        niknum dir[3], p1[3], p2[3], temp[3], toP1[3];
+        vec3_quat_rotate(dir, rot1, (niknum[3]){0,0,1});
+        vec3_addscl(p1, pos1, dir, size1[1]/2);
+        vec3_addscl(p2, pos1, dir, -size1[1]/2);
+        vec3_sub(toP1, pos0, p1);
+        vec3_sub(temp, p2, p1);
+        niknum t = vec3_dot(toP1, temp) / size1[1];
+        t = t < 0 ? 0 : (t > size1[1] ? size1[1] : t) / size1[1];
+        niknum n[3], cp[3];
+        vec3_addscl(cp, p1, temp, t);
+        vec3_sub(n, pos0, cp);
+        niknum d = vec3_normalize(n, n);
+        vec3_addscl(contacts[0].pos0, pos0, n, -size0[0]);
+        vec3_addscl(contacts[0].pos1, cp, n, size1[0]);
+        contacts[0].depth = d - size0[0] - size1[0];
+        return 1;
+    }
+
+    int collide_capsule_capsule(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
+        niknum dir0[3], dir1[3], tmp[3] = {0,0,1};
+        vec3_quat_rotate(dir0, rot0, tmp);
+        vec3_quat_rotate(dir1, rot1, tmp);
+
+        // Get segment endpoints in world space
+        niknum p1[3], q1[3], p2[3], q2[3], seg1[3], seg2[3];
+        vec3_addscl(p1, pos0, dir0, size0[1]/2);
+        vec3_addscl(q1, pos0, dir0, -size0[1]/2);
+        vec3_addscl(p2, pos1, dir1, size1[1]/2);
+        vec3_addscl(q2, pos1, dir1, -size1[1]/2);
+        vec3_sub(seg1, q1, p1);
+        vec3_sub(seg2, q2, p2);
+
+        // Project first segment onto plane of second
+        niknum n2[3], v[3], proj_p[3], proj_q[3], proj_dir[3];
+        vec3_normalize(n2, seg2);
+        vec3_sub(v, p1, p2);
+        niknum dp = vec3_dot(v, n2);
+        vec3_addscl(proj_p, p1, n2, -dp);
+        vec3_sub(v, q1, p2);
+        dp = vec3_dot(v, n2);
+        vec3_addscl(proj_q, q1, n2, -dp);
+        vec3_sub(proj_dir, proj_q, proj_p);
+
+        // Find intersection parameter
+        vec3_sub(v, p2, proj_p);
+        niknum t = vec3_dot(v, proj_dir) / (vec3_dot(proj_dir, proj_dir) + 1e-6f);
+        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+
+        // Get closest points
+        niknum point1[3], point2[3];
+        vec3_addscl(point1, p1, seg1, t);
+        vec3_sub(v, point1, p2);
+        niknum s = vec3_dot(v, seg2) / (vec3_dot(seg2, seg2) + 1e-6f);
+        s = s < 0 ? 0 : (s > 1 ? 1 : s);
+        vec3_addscl(point2, p2, seg2, s);
+
+        vec3_sub(v, point2, p1);
+        t = vec3_dot(v, seg1) / (vec3_dot(seg1, seg1) + 1e-6f);
+        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+        vec3_addscl(point1, p1, seg1, t);
+
+        // Set contact data
+        vec3_sub(v, point1, point2);
+        niknum dist = vec3_normalize(v, v);
+        vec3_addscl(contacts[0].pos0, point1, v, -size0[0]);
+        vec3_addscl(contacts[0].pos1, point2, v, size1[0]);
+        contacts[0].depth = dist - size0[0] - size1[0];
+        return 1;
+    }
+
     int collide_capsule_plane(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
         niknum tmp[3] = { 0, 0, 1 }, planeNormal[3], capsuleDir[3];
         vec3_quat_rotate(planeNormal, rot1, tmp);
@@ -278,7 +348,6 @@ namespace nik3dsim {
         return 1;
     }
 
-
     int collide_capsule_aabb(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
         niknum capsuleDir[3], tmp[3] = { 0, 0, 1 };  // Default capsule direction
         vec3_quat_rotate(capsuleDir, rot1, tmp);  // Rotate to world space
@@ -304,42 +373,35 @@ namespace nik3dsim {
     }
 
     int collide_sphere_box(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
-        // Transform sphere position to box local space
-        niknum localSpherePos[3], temp[3];
-        niknum rot[9];
+        niknum localPos[3], closest[3], temp[3], rot[9];
         quat2rotmat(rot1, rot);
-        vec3_sub(temp, pos0, pos1);  // Translate to box origin
-        vec3_matmul_t(localSpherePos, rot, temp);  // Rotate to box space
+        vec3_sub(temp, pos0, pos1);
+        vec3_matmul_t(localPos, rot, temp);
+        
+        for(int i = 0; i < 3; i++)
+            closest[i] = localPos[i] < -size1[i] ? -size1[i] : (localPos[i] > size1[i] ? size1[i] : localPos[i]);
+        
+        vec3_matmul(temp, rot, closest);
+        vec3_add(contacts[0].pos1, temp, pos1);
+        vec3_sub(temp, pos0, contacts[0].pos1);
+        niknum dist = vec3_normalize(temp, temp);
+        vec3_addscl(contacts[0].pos0, pos0, temp, -size0[0]);
+        contacts[0].depth = dist - size0[0];
+        return 1;
+    }
 
-        // Find closest point on box to sphere center
-        niknum closestPoint[3];
-        for (int i = 0; i < 3; i++) {
-            if (localSpherePos[i] < -size1[i]) {
-                closestPoint[i] = -size1[i];
-            }
-            else if (localSpherePos[i] > size1[i]) {
-                closestPoint[i] = size1[i];
-            }
-            else {
-                closestPoint[i] = localSpherePos[i];
-            }
-        }
+    int collide_sphere_aabb(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]) {
+        niknum closest[3], temp[3];
+        vec3_sub(temp, pos0, pos1);
 
-        // Transform closest point back to world space
-        niknum worldClosestPoint[3];
-        vec3_matmul(temp, rot, closestPoint);
-        vec3_add(worldClosestPoint, temp, pos1);
-
-        // Calculate normal and distance
-        niknum normal[3];
-        vec3_sub(normal, pos0, worldClosestPoint);
-        niknum dist = vec3_normalize(normal, normal);
-
-        // Set contact points
-        vec3_copy(contacts[0].pos1, worldClosestPoint);  // Point on box
-        vec3_addscl(contacts[0].pos0, pos0, normal, -size0[0]);  // Point on sphere surface
-        contacts[0].depth = dist - size0[0];  // Penetration depth (negative if penetrating)
-
+        for(int i = 0; i < 3; i++)
+            closest[i] = temp[i] < -size1[i] ? -size1[i] : (temp[i] > size1[i] ? size1[i] : temp[i]);
+        
+        vec3_add(contacts[0].pos1, closest, pos1);
+        vec3_sub(temp, pos0, contacts[0].pos1);
+        niknum dist = vec3_normalize(temp, temp);
+        vec3_addscl(contacts[0].pos0, pos0, temp, -size0[0]);
+        contacts[0].depth = dist - size0[0];
         return 1;
     }
 

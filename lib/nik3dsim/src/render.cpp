@@ -702,6 +702,9 @@ void renderer_draw_static(Renderer* renderer, StaticBodyModel model, float r, fl
         case BODY_PLANE:
             renderer_draw_wireframe_plane(renderer, model.pos, model.rot, r, g, b);
             break;
+        case BODY_CAPSULE:
+            renderer_draw_wireframe_capsule(renderer, model.pos, model.size, model.rot, r, g, b);
+            break;
         default:
             break;
     }

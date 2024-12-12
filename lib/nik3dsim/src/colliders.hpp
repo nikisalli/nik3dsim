@@ -7,9 +7,12 @@ namespace nik3dsim {
 
     // Specialized collision detection functions (unified signature)
     int collide_sphere_sphere(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
+    int collide_sphere_capsule(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_sphere_plane(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
+    int collide_sphere_aabb(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_capsule_plane(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_capsule_box(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
+    int collide_capsule_capsule(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_sphere_box(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_capsule_aabb(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
     int collide_box_plane(Contact contacts[], const niknum pos0[3], const niknum rot0[4], const niknum size0[3], const niknum pos1[3], const niknum rot1[4], const niknum size1[3]);
