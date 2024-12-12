@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
         // Get collision information
         Contact contacts[1];
         int numcon = collide_sphere_box(contacts,
-            spherePos, sphereSize,
+            spherePos, nullptr, sphereSize,
             boxPos, boxRot, boxSize
         );
         

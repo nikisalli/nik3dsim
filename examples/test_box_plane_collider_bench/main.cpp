@@ -75,7 +75,7 @@ int main() {
         Contact contacts[8];
         int numcon = collide_box_plane(contacts,
             test.boxPos, test.boxRot, test.boxSize,
-            test.planePos, test.planeRot);
+            test.planePos, test.planeRot, nullptr);
         (void)contacts[0];
     }
     auto end = high_resolution_clock::now();

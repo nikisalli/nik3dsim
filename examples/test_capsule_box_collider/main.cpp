@@ -118,8 +118,8 @@ int main(int argc, char* argv[]) {
         // Get collision information
         Contact contacts[4];
         int numcon = collide_capsule_box(contacts,
-            capsulePos, capsuleRot, capsuleSize,
-            boxPos, boxRot, boxSize
+            boxPos, boxRot, boxSize,
+            capsulePos, capsuleRot, capsuleSize
         );
         
         // Draw collision normal and contact point

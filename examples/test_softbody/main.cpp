@@ -9,15 +9,15 @@ int main() {
     nikModel m;
     nikData d;
     niknum gravity[3] = {0, 0, -9.81};
-    simulator_init(&m, gravity, 0.0005f, 4);
+    simulator_init(&m, gravity, 0.005f, 2);
 
     m.damping = 0.3f;
     
     // Cube parameters
-    const int nodesPerSide = 4;  // Adjustable: number of nodes per cube edge
+    const int nodesPerSide = 5;  // Adjustable: number of nodes per cube edge
     const float spacing = 0.2f;
-    const float radius = 0.05f;
-    const float stiffness = 1.0f;
+    const float radius = 0.1f;
+    const float stiffness = 0.2f;
 
     // Create particles in a 3D grid
     int particleIndices[nodesPerSide][nodesPerSide][nodesPerSide];
@@ -69,7 +69,7 @@ int main() {
         m.positionalConstraints[m.positionalConstraintCount++] = constraint;
     };
 
-    // Add constraints along cube edges and diagonals
+    // Add constraints along cube edges and all diagonals
     for(int x = 0; x < nodesPerSide; x++) {
         for(int y = 0; y < nodesPerSide; y++) {
             for(int z = 0; z < nodesPerSide; z++) {
@@ -83,17 +83,36 @@ int main() {
                 if(z < nodesPerSide-1)
                     addConstraint(current, particleIndices[x][y][z+1], stiffness);
                 
-                // Face diagonal constraints
-                if(x < nodesPerSide-1 && y < nodesPerSide-1)
+                // Face diagonal constraints - XY plane
+                if(x < nodesPerSide-1 && y < nodesPerSide-1) {
+                    // Both diagonals for each face
                     addConstraint(current, particleIndices[x+1][y+1][z], stiffness);
-                if(x < nodesPerSide-1 && z < nodesPerSide-1)
-                    addConstraint(current, particleIndices[x+1][y][z+1], stiffness);
-                if(y < nodesPerSide-1 && z < nodesPerSide-1)
-                    addConstraint(current, particleIndices[x][y+1][z+1], stiffness);
+                    addConstraint(particleIndices[x+1][y][z], particleIndices[x][y+1][z], stiffness);
+                }
                 
-                // Body diagonal constraint
-                if(x < nodesPerSide-1 && y < nodesPerSide-1 && z < nodesPerSide-1)
+                // Face diagonal constraints - XZ plane
+                if(x < nodesPerSide-1 && z < nodesPerSide-1) {
+                    addConstraint(current, particleIndices[x+1][y][z+1], stiffness);
+                    addConstraint(particleIndices[x+1][y][z], particleIndices[x][y][z+1], stiffness);
+                }
+                
+                // Face diagonal constraints - YZ plane
+                if(y < nodesPerSide-1 && z < nodesPerSide-1) {
+                    addConstraint(current, particleIndices[x][y+1][z+1], stiffness);
+                    addConstraint(particleIndices[x][y+1][z], particleIndices[x][y][z+1], stiffness);
+                }
+                
+                // Body diagonal constraints - all four diagonals for each cube
+                if(x < nodesPerSide-1 && y < nodesPerSide-1 && z < nodesPerSide-1) {
+                    // Diagonal 1: (x,y,z) to (x+1,y+1,z+1)
                     addConstraint(current, particleIndices[x+1][y+1][z+1], stiffness);
+                    // Diagonal 2: (x+1,y,z) to (x,y+1,z+1)
+                    addConstraint(particleIndices[x+1][y][z], particleIndices[x][y+1][z+1], stiffness);
+                    // Diagonal 3: (x,y+1,z) to (x+1,y,z+1)
+                    addConstraint(particleIndices[x][y+1][z], particleIndices[x+1][y][z+1], stiffness);
+                    // Diagonal 4: (x+1,y+1,z) to (x,y,z+1)
+                    addConstraint(particleIndices[x+1][y+1][z], particleIndices[x][y][z+1], stiffness);
+                }
             }
         }
     }
@@ -104,7 +123,7 @@ int main() {
     StaticBodyModel groundModel;
     niknum groundSize[3] = {2.0f, 2.0f, 0.1f};
     niknum groundPos[3] = {0.0f, 0.0f, -1.0f};
-    niknum groundRot[3] = {0.0f, 0.2f, 0.0f};
+    niknum groundRot[3] = {0.0f, 0.0f, 0.0f};
     static_init(&groundModel, BODY_BOX, groundSize, groundPos, groundRot);
 
     groundModel.contype = 1;
@@ -159,7 +178,7 @@ int main() {
                         for(int x = 0; x < nodesPerSide; x++) {
                             for(int y = 0; y < nodesPerSide; y++) {
                                 for(int z = 0; z < nodesPerSide; z++) {
-                                    d.bodies[particleIndices[x][y][z]].vel[1] = 2.0f;
+                                    d.bodies[particleIndices[x][y][z]].vel[2] = 2.0f;
                                 }
                             }
                         }

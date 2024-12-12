@@ -74,7 +74,7 @@ int main() {
         Contact contacts[4];
         int numcon = collide_capsule_aabb(contacts,
             test.capsulePos, test.capsuleRot, test.capsuleSize,
-            test.boxPos, test.boxSize
+            test.boxPos, nullptr,  test.boxSize
         );
         (void)contacts[0];
     }
