@@ -1,8 +1,6 @@
 # nik3dsim: Position-Based 3D Physics Engine
 
 A lightweight physics engine for real-time 3D rigidbody simulation made for efficient massively parallel reinforcement learning with:
-- NO weird inefficient python frameworks
-- NO useless proprietary blobs compatible with only a certain manufacturer's hardware
 - NO third party dependencies apart from opengl and SDL for the renderer
 - very fast custom written primitive colliders
 - branchless and single thread design made for massively parallel simulations
