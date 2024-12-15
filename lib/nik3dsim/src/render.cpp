@@ -7,7 +7,11 @@
 namespace nik3dsim {
 
 bool renderer_init(Renderer* renderer, int width, int height) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) < 0) {
+        return false;
+    }
+    
+    if (TTF_Init() < 0) {
         return false;
     }
     
@@ -589,10 +593,21 @@ void renderer_draw_wireframe_arrow(Renderer* renderer, niknum pos[3], niknum dir
     }
 }
 
-void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState) {
-    static const float ROTATION_SPEED = 0.3f;    // Degrees per pixel
-    static const float ZOOM_SPEED = 1.0f;
+void update_camera_from_mouse_state(const MouseState& mouseState, Camera& camera) {
+    // Calculate camera position based on spherical coordinates
+    double camxoffset = mouseState.dist * sin(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+    double camyoffset = mouseState.dist * cos(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
+    double camzoffset = mouseState.dist * sin(mouseState.elev * M_PI / 180.0);
     
+    camera.position[0] = camera.target[0] + camxoffset;
+    camera.position[1] = camera.target[1] + camyoffset;
+    camera.position[2] = camera.target[2] + camzoffset;
+}
+
+void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState) {
+    static const float ROTATION_SPEED = 0.3f; // Degrees per pixel
+    static const float ZOOM_SPEED = 1.0f;
+
     switch (event.type) {
         case SDL_MOUSEBUTTONDOWN: {
             if (event.button.button == SDL_BUTTON_LEFT) {
@@ -605,7 +620,6 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
             mouseState.lastY = event.button.y;
             break;
         }
-        
         case SDL_MOUSEBUTTONUP: {
             if (event.button.button == SDL_BUTTON_LEFT) {
                 mouseState.leftButtonDown = false;
@@ -615,22 +629,12 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
             }
             break;
         }
-        
         case SDL_MOUSEWHEEL: {
             mouseState.dist -= event.wheel.y * ZOOM_SPEED;
             mouseState.dist = fmax(0.1f, mouseState.dist); // Prevent negative or zero distance
-            
-            // Update camera position immediately after distance change
-            double camxoffset = mouseState.dist * sin(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
-            double camyoffset = mouseState.dist * cos(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
-            double camzoffset = mouseState.dist * sin(mouseState.elev * M_PI / 180.0);
-            
-            camera.position[0] = camera.target[0] + camxoffset;
-            camera.position[1] = camera.target[1] + camyoffset;
-            camera.position[2] = camera.target[2] + camzoffset;
+            update_camera_from_mouse_state(mouseState, camera);
             break;
         }
-        
         case SDL_MOUSEMOTION: {
             int deltaX = event.motion.x - mouseState.lastX;
             int deltaY = event.motion.y - mouseState.lastY;
@@ -648,14 +652,7 @@ void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseStat
                 while (mouseState.azim < 0.0f) mouseState.azim += 360.0f;
             }
             
-            // Update camera position based on spherical coordinates
-            double camxoffset = mouseState.dist * sin(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
-            double camyoffset = mouseState.dist * cos(mouseState.azim * M_PI / 180.0) * cos(mouseState.elev * M_PI / 180.0);
-            double camzoffset = mouseState.dist * sin(mouseState.elev * M_PI / 180.0);
-            
-            camera.position[0] = camera.target[0] + camxoffset;
-            camera.position[1] = camera.target[1] + camyoffset;
-            camera.position[2] = camera.target[2] + camzoffset;
+            update_camera_from_mouse_state(mouseState, camera);
             
             mouseState.lastX = event.motion.x;
             mouseState.lastY = event.motion.y;

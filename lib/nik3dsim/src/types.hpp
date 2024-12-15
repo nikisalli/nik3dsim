@@ -1,9 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <stdlib.h>
-
 #include "math.hpp"
 
 namespace nik3dsim {
@@ -17,10 +13,12 @@ namespace nik3dsim {
     } BodyType;
 
     typedef struct {
-        uint32_t b0, b1;
+        unsigned int b0, b1;
         niknum pos0[3];
         niknum pos1[3];
         niknum depth;
+        niknum normalForce;
+        niknum tangentForce[3];
         bool is_static;
     } Contact;
 
@@ -28,10 +26,13 @@ namespace nik3dsim {
         BodyType type;
         niknum size[3];
         
-        uint32_t contype, conaffinity;
+        unsigned int contype, conaffinity;
 
         niknum invMass;
         niknum invInertia[3];
+
+        niknum initpos[3];
+        niknum initrot[4];
 
         niknum contactCompliance;
         niknum frictionCoef;
@@ -51,7 +52,7 @@ namespace nik3dsim {
         BodyType type;
         niknum size[3];  // for planes it is the normal
 
-        uint32_t contype, conaffinity;
+        unsigned int contype, conaffinity;
 
         niknum pos[3];
         niknum rot[4];
@@ -105,5 +106,6 @@ namespace nik3dsim {
         RigidBodyData bodies[10000];
         Contact contacts[10000];
         size_t contactCount;
+        niknum hingeTorques[10000];
     } nikData;
 }

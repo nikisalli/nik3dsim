@@ -2,6 +2,7 @@
 #define RENDERER_HPP
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include "math.hpp"
 #include "types.hpp" // For RigidBody definitions
 
@@ -35,8 +36,10 @@ struct Renderer {
     Camera camera;
     float viewMatrix[16];
     float projectionMatrix[16];
+    TTF_Font* font;
 };
 
+void update_camera_from_mouse_state(const MouseState& mouseState, Camera& camera);
 void handle_mouse_events(SDL_Event& event, Camera& camera, MouseState& mouseState);
 
 // Initialization and cleanup

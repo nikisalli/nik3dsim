@@ -73,8 +73,8 @@ int main() {
         const TestCase& test = testCases[i % NUM_TEST_CASES];
         Contact contacts[4];
         int numcon = collide_capsule_aabb(contacts,
-            test.capsulePos, test.capsuleRot, test.capsuleSize,
-            test.boxPos, nullptr,  test.boxSize
+            test.boxPos, nullptr,  test.boxSize,
+            test.capsulePos, test.capsuleRot, test.capsuleSize
         );
         (void)contacts[0];
     }

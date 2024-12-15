@@ -10,20 +10,30 @@
 #include "types.hpp"
 
 namespace nik3dsim {
-    void rigidbody_init(RigidBodyModel* bm, RigidBodyData* bd, BodyType type, niknum size[3], niknum density, niknum pos[3], niknum angles[3]) {
+    void add_rigidbody(
+        nikModel* m,
+        BodyType type,
+        niknum size[3],
+        niknum density,
+        niknum pos[3],
+        niknum angles[3],
+        niknum compliance,
+        niknum friction,
+        unsigned int contype,
+        unsigned int conaffinity
+    ) {
+        RigidBodyModel* bm = &m->bodies[m->rigidBodyCount];
+        m->rigidBodyCount++;
+
         bm->type = type;
         vec3_copy(bm->size, size);
-        vec3_copy(bd->pos, pos);
-        vec3_copy(bd->prevPos, pos);
-        vec3_zero(bd->vel);
-        vec3_zero(bd->omega);
+        vec3_copy(bm->initpos, pos);
+        euler2quat(bm->initrot, angles);
 
-        bm->contactCompliance = 0.001f;
-        bm->frictionCoef = 0.0f;
-        
-        // Initialize rotation from Euler angles
-        euler2quat(bd->rot, angles);
-        vec4_copy(bd->prevRot, bd->rot);
+        bm->contactCompliance = compliance;
+        bm->frictionCoef = friction;
+        bm->contype = contype;
+        bm->conaffinity = conaffinity;
 
         niknum Ix, Iy, Iz;
         niknum m_cy, m_hs;
@@ -76,22 +86,67 @@ namespace nik3dsim {
         }
     }
 
-    void static_init(StaticBodyModel* bm, BodyType type, niknum size[3], niknum pos[3], niknum angles[3]) {
+    void add_staticbody(nikModel* m, BodyType type, niknum size[3], niknum pos[3], niknum angles[3], niknum compliance, niknum friction, unsigned int contype, unsigned int conaffinity) {
+        StaticBodyModel* bm = &m->staticBodies[m->staticBodyCount];
         bm->type = type;
         vec3_copy(bm->size, size);
         vec3_copy(bm->pos, pos);
         euler2quat(bm->rot, angles);
-        bm->contactCompliance = 0.001f;
-        bm->frictionCoef = 0.0f;
+        bm->contactCompliance = compliance;
+        bm->frictionCoef = friction;
+        bm->contype = contype;
+        bm->conaffinity = conaffinity;
+        m->staticBodyCount++;
     }
 
-    void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters) {
+    void simulator_init(nikModel* m, niknum gravity[3], niknum timeStepSize, int numPosIters, niknum damping) {
         vec3_copy(m->gravity, gravity);
         m->dt = timeStepSize;
         m->posIters = numPosIters;
         m->rigidBodyCount = 0;
         m->positionalConstraintCount = 0;
         m->hingeConstraintCount = 0;
+        m->damping = damping;
+    }
+
+    void data_init(nikModel* m, nikData* d) {
+        for (int i = 0; i < m->rigidBodyCount; i++) {
+            RigidBodyData* bd = &d->bodies[i];
+            RigidBodyModel* bm = &m->bodies[i];
+            vec3_copy(bd->pos, bm->initpos);
+            vec4_copy(bd->rot, bm->initrot);
+            vec3_zero(bd->vel);
+            vec3_zero(bd->omega);
+            vec3_copy(bd->prevPos, bm->initpos);
+            vec4_copy(bd->prevRot, bm->initrot);
+        }
+
+        d->contactCount = 0;
+
+        for (int i = 0; i < m->hingeConstraintCount; i++) {
+            d->hingeTorques[i] = 0.0f;
+        }
+    }
+
+    void add_distance_constraint(nikModel* m, unsigned int b0, unsigned int b1, niknum r0[3], niknum r1[3], niknum compliance, niknum distance) {
+        DistanceConstraint* c = &m->positionalConstraints[m->positionalConstraintCount];
+        c->b0 = b0;
+        c->b1 = b1;
+        vec3_copy(c->r0, r0);
+        vec3_copy(c->r1, r1);
+        c->compliance = compliance;
+        c->distance = distance;
+        m->positionalConstraintCount++;
+    }
+
+    void add_hinge_constraint(nikModel* m, unsigned int b0, unsigned int b1, niknum a0[3], niknum a1[3], niknum compliance) {
+        HingeConstraint* c = &m->hingeConstraints[m->hingeConstraintCount];
+        c->b0 = b0;
+        c->b1 = b1;
+        vec3_copy(c->a0, a0);
+        vec3_copy(c->a1, a1);
+        c->compliance = compliance;
+        m->hingeConstraintCount++;
     }
 
     void rigidbody_integrate(RigidBodyModel* bm, RigidBodyData* bd, niknum dt, niknum gravity[3]) {
@@ -118,9 +173,8 @@ namespace nik3dsim {
         
         // Update angular velocity (in body space)
         niknum angular_accel[3];
-        angular_accel[0] = bm->invInertia[0] * (torque[0] - cross_term[0]);
-        angular_accel[1] = bm->invInertia[1] * (torque[1] - cross_term[1]);
-        angular_accel[2] = bm->invInertia[2] * (torque[2] - cross_term[2]);
+        vec3_sub(angular_accel, torque, cross_term);
+        vec3_mul(angular_accel, angular_accel, bm->invInertia);
         
         niknum dw[3];
         vec3_scl(dw, angular_accel, dt);
@@ -231,7 +285,7 @@ namespace nik3dsim {
         quat_normalize(bd1->rot, bd1->rot);
     }
 
-    void solve_hinge_constraint(RigidBodyModel* bm0, RigidBodyModel* bm1, RigidBodyData* bd0, RigidBodyData* bd1, HingeConstraint* constraint, niknum dt) {
+    void solve_hinge_constraint(RigidBodyModel* bm0, RigidBodyModel* bm1, RigidBodyData* bd0, RigidBodyData* bd1, HingeConstraint* constraint, niknum torque, niknum dt) {
         // Compute rotation axis
         niknum n[3], a0[3], a1[3], tmp[4];
         vec3_quat_rotate(a0, bd0->rot, constraint->a0);
@@ -247,20 +301,21 @@ namespace nik3dsim {
                    n[1] * n[1] * bm1->invInertia[1] + 
                    n[2] * n[2] * bm1->invInertia[2];
         
-        // Compute correction magnitude (without lambda accumulation)
+        // Compute correction magnitude
         niknum alpha = constraint->compliance / (dt * dt);
         niknum lambda = -c / (w + alpha);
+        niknum lamt = (torque * dt * dt) / w;
 
         // Compute angular impulse (like positional impulse p in position solver)
         niknum ang_impulse[3];
         vec3_scl(ang_impulse, n, lambda);
+        // vec3_addscl(ang_impulse, ang_impulse, a0, lamt);
 
         // For body 0
         niknum dom0[3], drot0[4];
         // Apply inverse inertia to get angular velocity change (like I⁻¹(r × p))
-        dom0[0] = -ang_impulse[0] * bm0->invInertia[0];
-        dom0[1] = -ang_impulse[1] * bm0->invInertia[1];
-        dom0[2] = -ang_impulse[2] * bm0->invInertia[2];
+        vec3_mul(tmp, ang_impulse, bm0->invInertia);
+        vec3_scl(dom0, dom0, -1.0f);
         // Create quaternion from angular velocity (like [I⁻¹(r × p), 0])
         vec4_zero(drot0);
         vec3_copy(drot0, dom0);
@@ -271,9 +326,7 @@ namespace nik3dsim {
 
         // For body 1 (negative correction)
         niknum dom1[3], drot1[4];
-        dom1[0] = ang_impulse[0] * bm1->invInertia[0];
-        dom1[1] = ang_impulse[1] * bm1->invInertia[1];
-        dom1[2] = ang_impulse[2] * bm1->invInertia[2];
+        vec3_mul(dom1, ang_impulse, bm1->invInertia);
         vec4_zero(drot1);
         vec3_copy(drot1, dom1);
         quat_mul(tmp, drot1, bd1->rot);
@@ -327,6 +380,8 @@ namespace nik3dsim {
         // Calculate impulse magnitude
         niknum alpha = (bm0->contactCompliance + bm1->contactCompliance) / (dt * dt * 2.0);
         niknum lamn = fabs(-depth / (eff_mass + alpha));
+
+        contact->normalForce = lamn * (1.0f / dt / dt);
         
         // Apply linear impulse
         vec3_addscl(bd0->pos, bd0->pos, n, lamn * bm0->invMass);
@@ -353,6 +408,8 @@ namespace nik3dsim {
         
         niknum lamt = vec3_length(dp);
         niknum friction = fmaxf(bm0->frictionCoef, bm1->frictionCoef);
+
+        vec3_scl(contact->tangentForce, dp, (1.0f / dt / dt));
 
         // Apply static friction only
         // niknum applyfriction = lamt < friction * lamn;
@@ -447,7 +504,7 @@ namespace nik3dsim {
 
             for (int i = 0; i < m->hingeConstraintCount; i++) {
                 HingeConstraint* c = &m->hingeConstraints[i];
-                solve_hinge_constraint(&m->bodies[c->b0], &m->bodies[c->b1], &d->bodies[c->b0], &d->bodies[c->b1], c, m->dt);
+                solve_hinge_constraint(&m->bodies[c->b0], &m->bodies[c->b1], &d->bodies[c->b0], &d->bodies[c->b1], c, d->hingeTorques[i], m->dt);
             }
 
             for (int i = 0; i < d->contactCount; i++) {
